@@ -33,7 +33,7 @@ export default function Nav() {
             <a href="#about" className="text-gray-700 hover:text-orange-500 transition-colors font-medium">
               Services
             </a>
-            <a href="#contact" className="text-gray-800 hover:text-orange-500 transition-colors font-medium">
+            <a href="/auth/login" className="text-gray-800 hover:text-orange-500 transition-colors font-medium">
               Sign In
             </a>
             

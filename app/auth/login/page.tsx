@@ -5,6 +5,10 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
 import { authService } from '@/services/auth';
+import Nav from '@/components/layout/nav';
+import Footer from '@/components/layout/footer';
+import CustomerFooter from '@/components/layout/CustomerFooter';
+import CustomerNav from '@/components/layout/CustomerNav';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -62,6 +66,8 @@ export default function LoginPage() {
   };
 
   return (
+    <>
+    <CustomerNav/>
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div>
@@ -168,7 +174,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={isLoading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLoading ? 'Signing in...' : 'Sign in'}
             </button>
@@ -176,5 +182,7 @@ export default function LoginPage() {
         </form>
       </div>
     </div>
+    <CustomerFooter/>
+    </>
   );
 }
