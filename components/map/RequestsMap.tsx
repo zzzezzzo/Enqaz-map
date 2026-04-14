@@ -20,6 +20,7 @@ if (typeof window !== "undefined") {
 interface RequestsMapProps {
   center: [number, number];
   zoom?: number;
+  setview?: boolean;
   markers: RequestMarker[];
   className?: string;
   route?: {
@@ -70,6 +71,7 @@ export default function RequestsMap({
         width: "100%",
         minHeight: "240px",
         borderRadius: "0.75rem",
+        zIndex: 0,
       }}
       scrollWheelZoom
     >

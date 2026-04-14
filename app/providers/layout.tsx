@@ -31,7 +31,7 @@ const menuItems = [
   { href: "#", icon: DollarSign, label: "Services & Pricing" },
   { href: "#", icon: UserIcon, label: "Technicians" },
   { href: "#", icon: DollarSign, label: "Earnings" },
-  { href: "#", icon: Settings, label: "Profile & Settings" },
+  { href: "/providers/profile", icon: Settings, label: "Profile & Settings" },
 ];
 
 export default function ProvidersLayout({ children }: ProvidersLayoutProps) {

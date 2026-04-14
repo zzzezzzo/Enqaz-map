@@ -50,7 +50,7 @@ const MOCK_JOBS: CompletedJob[] = [
 ];
 
 const MOCK_KPIS: CompletedJobsKpis = {
-  todayCompleted: 2,
+  todayCompleted: 5,
   thisWeek: 18,
   totalRevenue: "4,850 EGP",
 };

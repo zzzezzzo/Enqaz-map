@@ -40,6 +40,7 @@ export interface RegisterData {
   name: string;
   email: string;
   password: string;
+  password_confirmation: string;
 }
 
 export interface AuthResponse {
@@ -48,23 +49,94 @@ export interface AuthResponse {
   expires_in: number;
 }
 
+function extractAccessToken(body: unknown): string | null {
+  if (body == null || typeof body !== "object") return null;
+  const b = body as Record<string, unknown>;
+
+  const direct =
+    (typeof b.access_token === "string" && b.access_token) ||
+    (typeof b.token === "string" && b.token) ||
+    (typeof b.plainTextToken === "string" && b.plainTextToken) ||
+    null;
+  if (direct) return direct;
+
+  const inner = b.data;
+  if (inner != null && typeof inner === "object") {
+    const d = inner as Record<string, unknown>;
+    const nested =
+      (typeof d.access_token === "string" && d.access_token) ||
+      (typeof d.token === "string" && d.token) ||
+      null;
+    if (nested) return nested;
+  }
+
+  return null;
+}
+
+/** Human-readable message for failed auth API calls (register, login, …). */
+export function readAuthApiErrorMessage(error: unknown): string {
+  if (!axios.isAxiosError(error)) {
+    return error instanceof Error && error.message
+      ? error.message
+      : "Something went wrong. Please try again.";
+  }
+
+  const status = error.response?.status;
+  const data = error.response?.data;
+
+  if (data && typeof data === "object") {
+    const rec = data as Record<string, unknown>;
+    const msg = rec.message;
+    if (typeof msg === "string" && msg.trim()) return msg.trim();
+    const errStr = rec.error;
+    if (typeof errStr === "string" && errStr.trim()) return errStr.trim();
+    const errors = rec.errors;
+    if (errors && typeof errors === "object" && !Array.isArray(errors)) {
+      const lines: string[] = [];
+      for (const [, val] of Object.entries(errors)) {
+        if (Array.isArray(val)) {
+          for (const v of val) {
+            if (typeof v === "string" && v.trim()) lines.push(v.trim());
+          }
+        } else if (val != null && String(val).trim()) {
+          lines.push(String(val).trim());
+        }
+      }
+      if (lines.length) return lines.join(" ");
+    }
+  }
+
+  if (status === 404)
+    return "Registration endpoint was not found. Check API URL and routes.";
+  if (status === 419)
+    return "Session expired. Refresh the page and try again.";
+  if (status === 429) return "Too many attempts. Please wait and try again.";
+  if (status) return `Request failed (HTTP ${status}).`;
+
+  if (error.code === "ERR_NETWORK") {
+    return "Cannot reach the server. Check that the API is running and CORS is allowed.";
+  }
+
+  if (typeof error.message === "string" && error.message.trim()) {
+    return error.message.trim();
+  }
+
+  return "Something went wrong. Please try again.";
+}
+
 export const authService = {
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
     const response = await api.post('/login', credentials);
-    const { access_token } = response.data;
-    // Store token in localStorage
-    localStorage.setItem('token', access_token);
-    return response.data;
+    const token = extractAccessToken(response.data);
+    if (token) localStorage.setItem('token', token);
+    return response.data as AuthResponse;
   },
 
   async register(data: RegisterData): Promise<AuthResponse> {
     const response = await api.post('/register', data);
-    const { access_token } = response.data;
-    
-    // Store token in localStorage
-    localStorage.setItem('token', access_token);
-    
-    return response.data;
+    const token = extractAccessToken(response.data);
+    if (token) localStorage.setItem('token', token);
+    return response.data as AuthResponse;
   },
 
   async logout(): Promise<void> {
@@ -82,11 +154,9 @@ export const authService = {
 
   async refreshToken(): Promise<AuthResponse> {
     const response = await api.post('/auth/refresh');
-    const { access_token } = response.data;
-    
-    localStorage.setItem('token', access_token);
-    
-    return response.data;
+    const token = extractAccessToken(response.data);
+    if (token) localStorage.setItem('token', token);
+    return response.data as AuthResponse;
   },
 
   isAuthenticated(): boolean {

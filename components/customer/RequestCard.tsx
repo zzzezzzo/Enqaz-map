@@ -5,10 +5,12 @@ import {
   Calendar,
   MapPin,
   User,
-  Wrench,
   MapPinned,
   Star,
   FileText,
+  Phone,
+  Car,
+  MessageSquare,
 } from "lucide-react";
 import type { ServiceRequest } from "@/lib/requests";
 
@@ -17,6 +19,14 @@ const statusStyles: Record<ServiceRequest["status"], string> = {
   completed: "bg-green-500 text-white",
   cancelled: "bg-red-500 text-white",
 };
+
+function statusBadgeText(request: ServiceRequest): string {
+  const raw = request.statusLabel?.trim();
+  if (raw) {
+    return raw.charAt(0).toUpperCase() + raw.slice(1);
+  }
+  return request.status.charAt(0).toUpperCase() + request.status.slice(1);
+}
 
 export default function RequestCard({
   request,
@@ -34,38 +44,82 @@ export default function RequestCard({
       className={`bg-white rounded-xl shadow-sm ${borderClass} p-5 space-y-4`}
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <h3 className="font-bold text-gray-900 text-lg">{request.serviceName}</h3>
+        <h3 className="font-bold text-gray-900 text-lg">
+          {request.serviceName}
+        </h3>
         <span
           className={`px-3 py-1 rounded-md text-sm font-medium ${statusStyles[request.status]}`}
         >
-          {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+          {statusBadgeText(request)}
         </span>
       </div>
 
       <div className="grid gap-2 text-sm text-gray-600">
         <p>Request ID: {request.requestId}</p>
         <p className="flex items-center gap-2">
-          <Calendar className="w-4 h-4 text-gray-400" />
+          <Calendar className="w-4 h-4 shrink-0 text-gray-400" />
           {request.dateTime}
         </p>
         <p className="flex items-center gap-2">
-          <MapPin className="w-4 h-4 text-gray-400" />
-          {request.location}
+          <MapPin className="w-4 h-4 shrink-0 text-gray-400" />
+          <span className="break-all">{request.location}</span>
         </p>
         <p className="flex items-center gap-2">
-          <User className="w-4 h-4 text-gray-400" />
-          {request.customerName}
+          <User className="w-4 h-4 shrink-0 text-gray-400" />
+          <span>
+            <span className="font-medium text-gray-700">Provider: </span>
+            {request.serviceProvider}
+          </span>
         </p>
-        <p className="flex items-center gap-2">
-          <Wrench className="w-4 h-4 text-gray-400" />
-          {request.serviceProvider}
-        </p>
+        {request.providerPhone ? (
+          <p className="flex items-center gap-2">
+            <Phone className="w-4 h-4 shrink-0 text-gray-400" />
+            <a
+              href={`tel:${request.providerPhone.replace(/\s/g, "")}`}
+              className="text-orange-600 hover:underline"
+            >
+              {request.providerPhone}
+            </a>
+          </p>
+        ) : null}
+        {request.vehicleSummary ? (
+          <p className="flex items-center gap-2">
+            <Car className="w-4 h-4 shrink-0 text-gray-400" />
+            <span>
+              <span className="font-medium text-gray-700">Vehicle: </span>
+              {request.vehicleSummary}
+            </span>
+          </p>
+        ) : null}
+        {request.description ? (
+          <p className="flex items-start gap-2">
+            <MessageSquare className="w-4 h-4 shrink-0 text-gray-400 mt-0.5" />
+            <span>
+              <span className="font-medium text-gray-700">Description: </span>
+              {request.description}
+            </span>
+          </p>
+        ) : null}
+        {request.customerName &&
+        request.customerName !== "Your request" ? (
+          <p className="flex items-center gap-2 text-sm text-gray-600">
+            <User className="w-4 h-4 shrink-0 text-gray-400" />
+            <span>
+              <span className="font-medium text-gray-700">Customer: </span>
+              {request.customerName}
+            </span>
+          </p>
+        ) : null}
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-gray-100">
-        <span className="font-semibold text-gray-900">
-          {request.cost} EGP
-        </span>
+        {request.cost !== undefined ? (
+          <span className="font-semibold text-gray-900">
+            {request.cost} EGP
+          </span>
+        ) : (
+          <span className="text-sm text-gray-500">Cost not quoted yet</span>
+        )}
         <div className="flex flex-wrap items-center gap-2">
           {request.status === "pending" && (
             <Link

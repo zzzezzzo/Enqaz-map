@@ -4,13 +4,20 @@ export interface ServiceRequest {
   id: string;
   serviceName: string;
   status: RequestStatus;
+  /** Badge text from API (e.g. "pending", "in progress"); falls back to capitalized `status`. */
+  statusLabel?: string;
   requestId: string;
   dateTime: string;
   location: string;
   customerName: string;
   serviceProvider: string;
-  cost: number;
-  rating?: number; // 1-5 if completed and rated
+  /** Omit or set when unknown — card hides the cost row. */
+  cost?: number;
+  rating?: number;
+  description?: string;
+  providerPhone?: string;
+  /** e.g. "2022 · BMW · ABC 123" */
+  vehicleSummary?: string;
 }
 
 export const MOCK_REQUESTS: ServiceRequest[] = [

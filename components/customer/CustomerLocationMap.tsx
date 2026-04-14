@@ -48,6 +48,7 @@ interface CustomerLocationMapProps {
   zoom?: number;
   className?: string;
   showMarker?: boolean;
+  zIndex?: number;
 }
 
 export default function CustomerLocationMap({

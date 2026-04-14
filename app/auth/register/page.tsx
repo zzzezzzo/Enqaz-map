@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, Mail, Lock, User } from 'lucide-react';
-import { authService } from '@/services/auth';
+import { authService, readAuthApiErrorMessage } from '@/services/auth';
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
@@ -72,27 +72,58 @@ export default function RegisterPage() {
       await authService.register({
         name: formData.name,
         email: formData.email,
-        password: formData.password
+        password: formData.password,
+        password_confirmation: formData.confirmPassword,
       });
       
       // Redirect to login page or dashboard after successful registration
       router.push('/');
-    } catch (error: any) {
-      console.error('Registration error:', error);
-      
-      if (error.response?.status === 422) {
-        // Handle validation errors from backend
-        const backendErrors = error.response.data.errors;
+    } catch (error: unknown) {
+      if (
+        typeof error === "object" &&
+        error !== null &&
+        "response" in error &&
+        (error as { response?: { status?: number; data?: unknown } }).response
+          ?.status === 422
+      ) {
+        const data = (error as { response?: { data?: unknown } }).response
+          ?.data;
+        const backendErrors =
+          data &&
+          typeof data === "object" &&
+          "errors" in data &&
+          (data as { errors: unknown }).errors != null &&
+          typeof (data as { errors: unknown }).errors === "object" &&
+          !Array.isArray((data as { errors: unknown }).errors)
+            ? ((data as { errors: Record<string, string[] | string | undefined> })
+                .errors)
+            : undefined;
+
+        const msg =
+          data &&
+          typeof data === "object" &&
+          "message" in data &&
+          typeof (data as { message: unknown }).message === "string"
+            ? (data as { message: string }).message
+            : "Please fix the errors below.";
+
         setErrors({
-          email: backendErrors.email?.[0],
-          name: backendErrors.name?.[0],
-          password: backendErrors.password?.[0],
-          general: 'Please fix the errors below'
+          email: backendErrors?.email?.[0],
+          name: backendErrors?.name?.[0],
+          password: Array.isArray(backendErrors?.password)
+            ? backendErrors.password[0]
+            : typeof backendErrors?.password === "string"
+              ? backendErrors.password
+              : undefined,
+          confirmPassword: Array.isArray(
+            backendErrors?.password_confirmation
+          )
+            ? backendErrors.password_confirmation[0]
+            : undefined,
+          general: msg,
         });
-      } else if (error.response?.data?.message) {
-        setErrors({ general: error.response.data.message });
       } else {
-        setErrors({ general: 'An error occurred during registration. Please try again.' });
+        setErrors({ general: readAuthApiErrorMessage(error) });
       }
     } finally {
       setIsLoading(false);
@@ -137,7 +168,7 @@ export default function RegisterPage() {
                   autoComplete="name"
                   value={formData.name}
                   onChange={handleInputChange}
-                  className={`block w-full pl-10 pr-3 py-2 border ${errors.name ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm`}
+                  className={`block w-full pl-10 text-gray-900 pr-3 py-2 border ${errors.name ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm`}
                   placeholder="Enter your full name"
                 />
               </div>
@@ -161,7 +192,7 @@ export default function RegisterPage() {
                   autoComplete="email"
                   value={formData.email}
                   onChange={handleInputChange}
-                  className={`block w-full pl-10 pr-3 py-2 border ${errors.email ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm`}
+                  className={`block w-full pl-10 text-gray-900 pr-3 py-2 border ${errors.email ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm`}
                   placeholder="Enter your email"
                 />
               </div>
@@ -185,7 +216,7 @@ export default function RegisterPage() {
                   autoComplete="new-password"
                   value={formData.password}
                   onChange={handleInputChange}
-                  className={`block w-full pl-10 pr-10 py-2 border ${errors.password ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm`}
+                  className={`block w-full pl-10 text-gray-900 pr-10 py-2 border ${errors.password ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm`}
                   placeholder="Create a password"
                 />
                 <button
@@ -220,7 +251,7 @@ export default function RegisterPage() {
                   autoComplete="new-password"
                   value={formData.confirmPassword}
                   onChange={handleInputChange}
-                  className={`block w-full pl-10 pr-10 py-2 border ${errors.confirmPassword ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm`}
+                  className={`block w-full pl-10 text-gray-900 pr-10 py-2 border ${errors.confirmPassword ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm`}
                   placeholder="Confirm your password"
                 />
                 <button
