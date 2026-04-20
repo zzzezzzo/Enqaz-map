@@ -41,6 +41,18 @@ export interface RegisterData {
   email: string;
   password: string;
   password_confirmation: string;
+  /**
+   * Tell the backend this account is a workshop provider (not only a customer).
+   * Backend should create a provider/workshop record and set admin approval to pending when applicable.
+   */
+  role?: 'customer' | 'provider';
+  /** Required when `role` is `provider` — matches provider profile / workshop fields. */
+  workShopName?: string;
+  description?: string;
+  latitude?: string;
+  longitude?: string;
+  /** Service catalog IDs to attach to the new workshop. */
+  services?: number[];
 }
 
 export interface AuthResponse {

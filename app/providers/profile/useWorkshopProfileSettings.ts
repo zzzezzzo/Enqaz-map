@@ -1,107 +1,80 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import api from "@/services/auth";
-import type {
-  ProviderProfilePayload,
-  ServiceOption,
-  WorkshopProfileForm,
-} from "./types";
+import api, { readAuthApiErrorMessage } from "@/services/auth";
+import type { ProviderProfileSavePayload, WorkshopProfileForm } from "./types";
+import { useProviderProfile, uniqueServiceIdsFromProfile } from "./useProviderProfile";
 
-const MOCK_FORM: WorkshopProfileForm = {
-  name: "Al-Noor Workshop",
-  phoneNumber: "01205179358",
-  address: "mastol azza el sayeda",
-  description:
-    "Trusted roadside assistance and vehicle repair for everyday drivers. We focus on speed, transparency, and quality parts.",
-  latitude: "12.345678",
-  longitude: "87.654321",
-  services: [1, 3],
-  openingTime: "08:00",
-  closingTime: "22:00",
+const EMPTY_FORM: WorkshopProfileForm = {
+  workShopName: "",
+  description: "",
+  latitude: "",
+  longitude: "",
+  services: [],
 };
 
 export function useWorkshopProfileSettings() {
-  const [form, setForm] = useState<WorkshopProfileForm>(MOCK_FORM);
-  const [logoPreviewUrl, setLogoPreviewUrl] = useState<string | null>(null);
-  const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
-  const [servicesOptions, setServicesOptions] = useState<ServiceOption[]>([]);
-  const [servicesLoading, setServicesLoading] = useState(false);
-  const [servicesError, setServicesError] = useState<string | null>(null);
+  const {
+    profile,
+    isLoading: profileLoading,
+    error: profileError,
+    refetch: refetchProfile,
+    allServices: servicesOptions,
+    servicesLoading,
+    servicesError,
+  } = useProviderProfile();
+
+  const [form, setForm] = useState<WorkshopProfileForm>(EMPTY_FORM);
   const [locationLoading, setLocationLoading] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saveLoading, setSaveLoading] = useState(false);
 
   useEffect(() => {
-    return () => {
-      // Cleanup object URL (if any)
-      if (logoPreviewUrl?.startsWith("blob:")) {
-        URL.revokeObjectURL(logoPreviewUrl);
-      }
-    };
-  }, [logoPreviewUrl]);
+    if (!profile) return;
+    setForm({
+      workShopName: profile.workShopName ?? "",
+      description: profile.description ?? "",
+      latitude: String(profile.latitude ?? ""),
+      longitude: String(profile.longitude ?? ""),
+      services: uniqueServiceIdsFromProfile(profile.services),
+    });
+  }, [profile]);
 
-  useEffect(() => {
-    const fetchServices = async () => {
-      setServicesLoading(true);
-      setServicesError(null);
-      try {
-        const response = await api.get("/services");
-        const raw = Array.isArray(response.data)
-          ? response.data
-          : Array.isArray(response.data?.data)
-            ? response.data.data
-            : [];
-
-        const normalized: ServiceOption[] = raw
-          .map((item: any) => ({
-            id: Number(item?.id),
-            name: String(item?.name ?? item?.title ?? ""),
-          }))
-          .filter(
-            (service: ServiceOption) =>
-              Number.isFinite(service.id) && service.id > 0 && service.name
-          );
-
-        setServicesOptions(normalized);
-      } catch (error) {
-        setServicesError("Unable to load services from backend.");
-      } finally {
-        setServicesLoading(false);
-      }
-    };
-
-    fetchServices();
-  }, []);
-
-  const handleLogoFileChange = (file: File | null) => {
-    if (!file) return;
-    if (logoPreviewUrl?.startsWith("blob:")) {
-      URL.revokeObjectURL(logoPreviewUrl);
-    }
-
-    const url = URL.createObjectURL(file);
-    setLogoPreviewUrl(url);
-    setSelectedFileName(file.name);
-  };
-
-  const handleSave = () => {
-    const payload: ProviderProfilePayload = {
-      name: form.name,
-      description: form.description,
-      latitude: form.latitude,
-      longitude: form.longitude,
+  const handleSave = async () => {
+    const payload: ProviderProfileSavePayload = {
+      workShopName: form.workShopName.trim(),
+      description: form.description ?? "",
+      latitude: form.latitude.trim(),
+      longitude: form.longitude.trim(),
       services: form.services,
     };
+    const compatibilityPayload = {
+      ...payload,
+      name: payload.workShopName,
+      workshop_name: payload.workShopName,
+      service_ids: payload.services,
+    };
 
-    // TODO: Replace endpoint when backend route is finalized
-    api
-      .put("/workshop/profile", payload)
-      .then(() => {
-        console.log("Workshop profile saved", payload);
-      })
-      .catch(() => {
-        console.log("Failed to save workshop profile", payload);
-      });
+    setSaveLoading(true);
+    setSaveError(null);
+    try {
+      try {
+        await api.put("/provider/profile", compatibilityPayload);
+      } catch (error: unknown) {
+        const status =
+          error && typeof error === "object" && "response" in error
+            ? (error as { response?: { status?: number } }).response?.status
+            : undefined;
+        if (status !== 404) throw error;
+        await api.put("/workshop/profile", compatibilityPayload);
+      }
+      await refetchProfile();
+    } catch (err: unknown) {
+      setSaveError(readAuthApiErrorMessage(err));
+    } finally {
+      setSaveLoading(false);
+    }
   };
 
   const toggleService = (serviceId: number) => {
@@ -127,8 +100,8 @@ export function useWorkshopProfileSettings() {
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        const lat = position.coords.latitude.toFixed(6);
-        const lng = position.coords.longitude.toFixed(6);
+        const lat = position.coords.latitude.toFixed(7);
+        const lng = position.coords.longitude.toFixed(7);
 
         setForm((prev) => ({
           ...prev,
@@ -149,17 +122,19 @@ export function useWorkshopProfileSettings() {
   return {
     form,
     setForm,
-    logoPreviewUrl,
-    selectedFileName,
+    profile,
+    profileLoading,
+    profileError,
+    refetchProfile,
     servicesOptions,
     servicesLoading,
     servicesError,
     locationLoading,
     locationError,
-    handleLogoFileChange,
+    saveError,
+    saveLoading,
     toggleService,
     useLiveLocation,
     handleSave,
   };
 }
-

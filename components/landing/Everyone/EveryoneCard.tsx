@@ -1,38 +1,45 @@
-import { Users, Star, TrendingUp, Shield, CheckCircle } from "lucide-react";
+import { Users, Star, TrendingUp, Shield } from "lucide-react";
+
+
 
 interface EveryoneCardProps {
+
     icon: React.ReactNode;
+
     title: string;
+
     heading:string;
+
     descriptionTitle:string;
+
     description: string;
+
     bgColor: string;
+
     iconColor: string;
+
 }
 
-export default function EveryoneCard({ icon, title, heading, descriptionTitle, description, bgColor, iconColor }: EveryoneCardProps) {
-    const isOrangeCard = bgColor.includes('orange');
-    
+
+
+export default function EveryoneCard({ icon, title, description, bgColor, iconColor }: EveryoneCardProps) {
+
     return (
-        <div className={`${bgColor} ${isOrangeCard ? 'text-white' : 'text-slate-900'} p-10 rounded-2xl ${isOrangeCard ? 'shadow-xl' : 'shadow-lg border-2 border-gray-200'}`}>
-            {icon && <div className={` ${iconColor} w-20 h-20 border-2 border-current rounded-xl p-4 flex items-center justify-center mb-6`}>
+
+        <div className={`${bgColor} p-8 rounded-2xl text-center shadow-lg hover:shadow-xl transition-shadow duration-300`}>
+
+            <div className={`${iconColor} w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6`}>
+
                 {icon}
-            </div>}
-            <h3 className="text-3xl font-bold mb-6">{heading}</h3>
-            <p className={`text-lg mb-8 ${isOrangeCard ? 'text-white' : 'text-gray-600'}`}>{descriptionTitle}</p>
-            
-            <ul className="space-y-4 mb-8">
-                {description.split(', ').map((item, index) => (
-                    <li key={index} className="flex items-center text-lg">
-                        <CheckCircle className={`w-6 h-6 mr-3 shrink-0 ${isOrangeCard ? 'text-white' : 'text-green-500'}`} />
-                        <span className={isOrangeCard ? 'text-white' : 'text-gray-700'}>{item}</span>
-                    </li>
-                ))}
-            </ul>
-            
-            <button className={`${isOrangeCard ? 'bg-white text-orange-500 hover:bg-gray-100' : 'bg-slate-900 hover:bg-slate-800 text-white'} px-8 py-4 rounded-lg font-bold text-lg transition-colors shadow-lg`}>
-                {title}
-            </button>
+
+            </div>
+
+            <h3 className="text-xl font-bold text-slate-900 mb-4">{title}</h3>
+
+            <p className="text-gray-600 leading-relaxed">{description}</p>
+
         </div>
+
     );
+
 }

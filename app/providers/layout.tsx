@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image"
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   Inbox,
@@ -18,6 +18,8 @@ import {
   Menu,
   X,
 } from "lucide-react";
+import { authService } from "@/services/auth";
+import ProviderRouteGuard from "@/components/providers/ProviderRouteGuard";
 
 interface ProvidersLayoutProps {
   children: React.ReactNode;
@@ -28,9 +30,6 @@ const menuItems = [
   { href: "/providers/requests", icon: Inbox, label: "Incoming Requests" },
   { href: "/providers/active-jobs", icon: Wrench, label: "Active Jobs" },
   { href: "/providers/completed-jobs", icon: CheckCircle, label: "Completed Jobs" },
-  { href: "#", icon: DollarSign, label: "Services & Pricing" },
-  { href: "#", icon: UserIcon, label: "Technicians" },
-  { href: "#", icon: DollarSign, label: "Earnings" },
   { href: "/providers/profile", icon: Settings, label: "Profile & Settings" },
 ];
 
@@ -38,9 +37,31 @@ export default function ProvidersLayout({ children }: ProvidersLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
+
+  const isPendingApprovalRoute = pathname?.startsWith("/providers/pending-approval");
 
   const isActive = (href: string) =>
     href !== "#" && pathname.startsWith(href);
+
+  const handleLogout = async () => {
+    try {
+      await authService.logout();
+    } finally {
+      setUserDropdownOpen(false);
+      setSidebarOpen(false);
+      router.push("/auth/login");
+      router.refresh();
+    }
+  };
+
+  if (isPendingApprovalRoute) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12">
+        {children}
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -82,7 +103,11 @@ export default function ProvidersLayout({ children }: ProvidersLayoutProps) {
             );
           })}
 
-          <button className="w-full flex items-center px-6 py-3 text-left text-gray-700 hover:bg-gray-50 transition-colors">
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="w-full flex items-center px-6 py-3 text-left text-gray-700 hover:bg-gray-50 transition-colors"
+          >
             <LogOut className="h-5 w-5 mr-3" />
             <span className="font-medium">Logout</span>
           </button>
@@ -135,7 +160,11 @@ export default function ProvidersLayout({ children }: ProvidersLayoutProps) {
                     Settings
                   </button>
                   <hr className="my-1" />
-                  <button className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-200">
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors duration-200"
+                  >
                     Sign out
                   </button>
                 </div>
@@ -145,7 +174,9 @@ export default function ProvidersLayout({ children }: ProvidersLayoutProps) {
         </header>
 
         {/* Page Body */}
-        <main className="flex-1 p-6">{children}</main>
+        <main className="flex-1 p-6">
+          <ProviderRouteGuard>{children}</ProviderRouteGuard>
+        </main>
 
         {/* Footer */}
         <footer className="bg-white border-t border-gray-200 py-4 text-center text-sm text-gray-500">

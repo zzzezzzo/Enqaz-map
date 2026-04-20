@@ -2,6 +2,7 @@
 import dynamic from "next/dynamic";
 import { LayoutDashboard , BatteryCharging, MapPin ,Clock2 , CircleDot, Fuel, Wrench } from "lucide-react";
 import { icon } from "leaflet";
+import { useProviderDashboard } from "./ProviderDashboard";
 
 const RequestsMap = dynamic(
   () => import("@/components/map/RequestsMap"),
@@ -16,20 +17,17 @@ const RequestsMap = dynamic(
 );
 
 export default function ProviderDashboard() {
-  const statsCards = [
-    { title: 'Total Requests Today', value: '12,458', change: '+12%', color: 'bg-blue-500' },
-    { title: 'Active Jobs', value: '8,039', change: '+8%', color: 'bg-green-500' },
-    { title: 'Available Technicians', value: '11,597', change: '+5%', color: 'bg-orange-500' },
-    { title: 'Available Winches', value: '300', change: '+2%', color: 'bg-purple-500' },
-  ];
+  const { data, isLoading, error,  refetch } = useProviderDashboard();
+  const statsCards = data ? [
+    { title: 'Total Requests Today', value: data?.service_status?.total_requests_today.toString() || '0', change: '+12%', color: 'bg-blue-500' },
+    { title: 'Active Jobs', value: data?.service_status?.active_jobs.toString() || '0', change: '+8%', color: 'bg-green-500' },
+  ] : [] as { title: string; value: string; change: string; color: string }[];
+  const incomingRequests = data ? data.income_request : [];
+  const workshop = data?.income_request?.workShop_location;
+  if(!workshop){
+    return <div>loading map</div>
+  }
 
-  const incomingRequests = [
-    { id: 1, customer: 'Ahmed Mohammed',icon: <BatteryCharging className="h-6 w-6 text-orange-500 transition-transform duration-300" />, service: 'Battery Service', distance: '2.5 km', time: '2 min ago', status: 'pending' },
-    { id: 2, customer: 'Sarah Al-Rashid', service: 'Tire Change', distance: '1.8 km', time: '5 min ago', status: 'pending' },
-    { id: 3, customer: 'Khalid Hassan', service: 'Fuel Delivery', distance: '4.2 km', time: '8 min ago', status: 'pending' },
-    { id: 4, customer: 'Fatima Ali', service: 'Car Towing', distance: '3.1 km', time: '12 min ago', status: 'pending' },
-    { id: 5, customer: 'Omar Khalid', service: 'Lockout Service', distance: '0.9 km', time: '15 min ago', status: 'pending' },
-  ];
 
   return (
     <>
@@ -37,7 +35,7 @@ export default function ProviderDashboard() {
         Dashboard Overview
       </h2>
       {/* Stats Cards */}
-      <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4 ">
+      <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-2 ">
         {statsCards.map((card, index) => (
           <div
             key={index}
@@ -75,31 +73,31 @@ export default function ProviderDashboard() {
                 Incoming Requests
               </h3>
               <span className="text-sm text-gray-500">
-                Showing {incomingRequests.length} requests
+                Showing {} requests
               </span>
             </div>
           </div>
           <div className="space-y-4 p-4">
-            {incomingRequests.slice(0, 5).map((request) => (
+            {data?.income_request?.requests?.slice(0, 5).map((request) => (
               <div 
               className="rounded-lg border border-gray-200 bg-white px-4 py-3"
               key={request.id}
               >
-              <div
-                
-                className="flex items-center justify-between "
-              >
+              <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-semibold text-[#1E3A5F]">
-                    {request.customer}
+                    {request.customer_name}
                   </p>
                   <p className="text-xs text-gray-500 flex items-center gap-2">
-                    {request.service == "Battery Service" ? <BatteryCharging className="h-4 w-4 text-orange-500" /> : request.service == "Tire Service" ? <CircleDot className="h-4 w-4 text-orange-500" /> : request.service == "Fuel Service" ? <Fuel className="h-4 w-4 text-orange-500" /> : <Wrench className="h-4 w-4 text-orange-500" />} {request.service} • <MapPin className="h-4 w-4 text-gray-500" /> {request.distance} • <Clock2 className="h-4 w-4 text-gray-500" /> {request.time}
+                    {request.service_name}  <MapPin className="h-4 w-4 text-gray-500" /> {request.distance}  <Clock2 className="h-4 w-4 text-gray-500" /> {request.minutes_ago}  ago
+                  </p>
+                  <p className="text-lg text-gray-500 flex items-center gap-2">
+                    {request.description} 
                   </p>
                 </div>
-                {/* <span className="inline-flex items-center rounded-full bg-orange-50 px-3 py-1 text-xs font-medium text-[#E18100]">
+                <span className="inline-flex items-center rounded-full bg-orange-50 px-3 py-1 text-xs font-medium text-[#E18100]">
                   Pending
-                </span> */}
+                </span>
               </div>
                 <div className="flex items-center gap-2 mt-3 ">
                   <button className="bg-orange-500 text-white px-4 py-2 rounded-md">Accept</button>
@@ -111,6 +109,7 @@ export default function ProviderDashboard() {
         </div>
 
         {/* Active Requests Map */}
+            
         <div className="rounded-lg bg-white shadow col-span-2">
           <div className="border-b border-gray-200 px-6 py-4">
             <h3 className="text-lg font-semibold text-gray-900">
@@ -119,34 +118,25 @@ export default function ProviderDashboard() {
           </div>
           <div className="p-4">
             <RequestsMap
-              center={[24.7136, 46.6753]}
+            
+              center={
+                workshop
+                  ? [parseFloat(workshop.latitude), parseFloat(workshop.longitude)]
+                  : [0, 0] 
+              }
               zoom={11}
-              markers={[
-                {
-                  id: 1,
-                  lat: 24.721,
-                  lng: 46.68,
-                  label: "Workshop A",
-                  subtitle: "Main branch",
-                  type: "workshop",
-                },
-                {
-                  id: 2,
-                  lat: 24.708,
-                  lng: 46.69,
-                  label: "Request - Battery",
-                  subtitle: "Ahmed Mohammed",
+              markers={
+                data?.income_request?.requests?.map((req, index) => ({
+                  id: req.id ?? index,
+                  lat: parseFloat(req.latitude || "0"),
+                  lng: parseFloat(req.longitude || "0"),
+
+                  label: `${req.customer_name} - ${req.service_name}`,
+                  subtitle: req.distance || "0 km",
+
                   type: "driver",
-                },
-                {
-                  id: 3,
-                  lat: 24.703,
-                  lng: 46.665,
-                  label: "Request - Tire",
-                  subtitle: "Sarah Al‑Rashid",
-                  type: "driver",
-                },
-              ]}
+                })) || []
+              }
             />
           </div>
         </div>

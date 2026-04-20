@@ -22,10 +22,7 @@ export function useCustomerVehiclePrompt() {
         const hasVehicle = Array.isArray(data)
           ? data.length > 0
           : Boolean(data?.id );
-          console.log(data);
-          console.log(hasVehicle);
           
-
         if (!hasVehicle) {
           setShowVehicleModal(true);
         } else {

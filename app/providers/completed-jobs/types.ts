@@ -15,6 +15,7 @@ export type CompletedJob = {
   duration: string;
   phone: string;
   completedAt: string;
+  completedAtRaw?: string;
 };
 
 /**

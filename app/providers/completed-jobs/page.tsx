@@ -1,6 +1,6 @@
 "use client";
 
-import { Calendar, CheckCircle2, DollarSign, Download } from "lucide-react";
+import { Calendar, CheckCircle2, Download } from "lucide-react";
 import { KpiCard } from "@/components/providers/KpiCard";
 import { CompletedJobCard } from "@/components/providers/CompletedJobCard";
 import { useCompletedJobs } from "./useCompletedJobs";
@@ -9,6 +9,9 @@ export default function CompletedJobsPage() {
   const {
     jobs,
     kpis,
+    isLoading,
+    error,
+    refetch,
     dateRange,
     setDateRange,
     exportJobs,
@@ -66,7 +69,22 @@ export default function CompletedJobsPage() {
       <section>
         <h2 className="mb-4 text-lg font-semibold text-slate-900">Job History</h2>
         <div className="space-y-4">
-          {jobs.length === 0 ? (
+          {isLoading ? (
+            <p className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-slate-500">
+              Loading completed requests...
+            </p>
+          ) : error ? (
+            <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-center text-red-700">
+              <p>{error}</p>
+              <button
+                type="button"
+                onClick={refetch}
+                className="mt-3 inline-flex items-center rounded-lg border border-red-300 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-100"
+              >
+                Retry
+              </button>
+            </div>
+          ) : jobs.length === 0 ? (
             <p className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-slate-500">
               No completed jobs in this period.
             </p>

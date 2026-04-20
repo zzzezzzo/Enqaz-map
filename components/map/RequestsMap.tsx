@@ -98,16 +98,27 @@ function RoutingLayer({ from, to, leaflet }: RoutingLayerProps) {
   const map = useMap();
   const routingRef = useRef<any>(null);
 
+  const removeRoutingControlSafely = () => {
+    const control = routingRef.current;
+    if (!control) return;
+
+    try {
+      // Leaflet routing control can be cleaned twice during fast unmount/re-render.
+      // Guard internal map pointer to avoid "this._map is null" errors.
+      if (control._map) {
+        map.removeControl(control);
+      }
+    } catch {
+      // ignore cleanup errors during unmount
+    } finally {
+      routingRef.current = null;
+    }
+  };
+
   useEffect(() => {
     if (!map || !leaflet || !(leaflet as any).Routing) return;
 
-    if (routingRef.current) {
-      try {
-        map.removeControl(routingRef.current);
-      } catch {
-        // ignore
-      }
-    }
+    removeRoutingControlSafely();
 
     const routingControl = (leaflet as any).Routing.control({
       waypoints: [
@@ -130,13 +141,7 @@ function RoutingLayer({ from, to, leaflet }: RoutingLayerProps) {
     routingRef.current = routingControl;
 
     return () => {
-      if (routingRef.current) {
-        try {
-          map.removeControl(routingRef.current);
-        } catch {
-          // ignore
-        }
-      }
+      removeRoutingControlSafely();
     };
   }, [map, from, to, leaflet]);
 

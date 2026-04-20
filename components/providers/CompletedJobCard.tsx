@@ -74,7 +74,7 @@ export function CompletedJobCard({ job, className = "" }: CompletedJobCardProps)
       {/* Bottom row: completed at */}
       <div className="mt-4 flex items-center gap-2 border-t border-slate-100 pt-3 text-sm text-slate-500">
         <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-        <span>Completed at {job.completedAt}</span>
+        <span>Completed at {job.completedAtRaw}</span>
       </div>
     </div>
   );
