@@ -4,6 +4,7 @@ import Hero from "@/components/landing/hero/Hero";
 import Services from "@/components/landing/services/Services";
 import WhyUs from "@/components/landing/why-us/WhyUs";
 import Everyone from "@/components/landing/Everyone/Everyone";
+import LandingFinalCta from "@/components/landing/cta/LandingFinalCta";
 
 export default function LandingPage() {
     return (
@@ -14,6 +15,7 @@ export default function LandingPage() {
                 <Services />
                 <WhyUs />
                 <Everyone/>
+                <LandingFinalCta />
             </main>
             <Footer />
         </>

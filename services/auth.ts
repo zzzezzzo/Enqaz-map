@@ -160,7 +160,7 @@ export const authService = {
   },
 
   async getCurrentUser() {
-    const response = await api.get('/auth/me');
+    const response = await api.get('/me');
     return response.data;
   },
 

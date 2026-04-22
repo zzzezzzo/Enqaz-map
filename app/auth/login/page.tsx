@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
 import { authService } from '@/services/auth';
+import { resolvePostLoginDestination } from '@/lib/postRegisterRedirect';
 import CustomerFooter from '@/components/layout/CustomerFooter';
 import CustomerNav from '@/components/layout/CustomerNav';
 import RegisterForm from '@/components/auth/RegisterForm';
@@ -66,7 +67,8 @@ function LoginForm() {
     try {
       await authService.login({ email, password });
 
-      router.push('/customer');
+      const next = await resolvePostLoginDestination();
+      router.push(next);
     } catch (error: unknown) {
       console.error('Login error:', error);
       const err = error as { response?: { status?: number; data?: { message?: string } } };
