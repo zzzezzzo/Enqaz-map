@@ -7,9 +7,9 @@ export function providerMayAccessProviderApp(
   profile: ProviderProfileApiData | null
 ): boolean {
   if (!profile) return false;
-  if (profile.approval_status === "rejected") return false;
+  if (profile.is_available === 0) return false;
   if (profile.approval_status === "pending") return false;
-  if (profile.approval_status === "approved") return true;
+  if (profile.is_available === 1) return true;
   if (typeof profile.is_approved === "number") return profile.is_approved === 1;
   return true;
 }

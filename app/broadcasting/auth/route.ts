@@ -8,34 +8,54 @@ function upstreamOrigin(): string {
   ).replace(/\/$/, "");
 }
 
+function upstreamBroadcastAuthUrls(base: string): string[] {
+  const explicit = process.env.BROADCAST_AUTH_UPSTREAM_PATH?.trim();
+  if (explicit) {
+    const path = explicit.startsWith("/") ? explicit : `/${explicit}`;
+    return [`${base}${path}`];
+  }
+  if (/\/api$/i.test(base)) {
+    return [`${base}/broadcasting/auth`];
+  }
+  return [`${base}/broadcasting/auth`, `${base}/api/broadcasting/auth`];
+}
+
 /**
  * Proxies Laravel private-channel auth so the browser calls same-origin
  * `/broadcasting/auth` (avoids CORS when the Next app and API differ by host/port).
  */
 export async function POST(req: NextRequest) {
-  const target = `${upstreamOrigin()}/broadcasting/auth`;
+  const origins = upstreamBroadcastAuthUrls(upstreamOrigin());
   const authorization = req.headers.get("authorization");
   const contentType =
     req.headers.get("content-type") ?? "application/x-www-form-urlencoded";
   const accept = req.headers.get("accept") ?? "application/json";
   const body = await req.text();
 
-  let upstream: Response;
+  let upstream: Response | undefined;
+  let lastTarget = "";
   try {
-    upstream = await fetch(target, {
-      method: "POST",
-      headers: {
-        "Content-Type": contentType,
-        Accept: accept,
-        ...(authorization ? { Authorization: authorization } : {}),
-      },
-      body,
-    });
+    for (const target of origins) {
+      lastTarget = target;
+      upstream = await fetch(target, {
+        method: "POST",
+        headers: {
+          "Content-Type": contentType,
+          Accept: accept,
+          ...(authorization ? { Authorization: authorization } : {}),
+        },
+        body,
+      });
+      if (upstream.status !== 404 || origins.length === 1) break;
+    }
   } catch {
     return NextResponse.json(
-      { message: "Broadcasting auth upstream unreachable", upstream: target },
+      { message: "Broadcasting auth upstream unreachable", upstream: lastTarget },
       { status: 502 }
     );
+  }
+  if (!upstream) {
+    return NextResponse.json({ message: "Broadcasting auth upstream misconfigured" }, { status: 502 });
   }
 
   const text = await upstream.text();

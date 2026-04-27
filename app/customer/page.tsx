@@ -1,7 +1,9 @@
 "use client";
 
+import { Suspense } from "react";
 import CustomerNav from "@/components/layout/CustomerNav";
 import CustomerFooter from "@/components/layout/CustomerFooter";
+import { AccountRedirectNotice } from "@/components/customer/AccountRedirectNotice";
 import CustomerHomeView from "@/components/customer/CustomerHomeView";
 import { useCustomerHome } from "./useCustomerHome";
 import AddVehicleModalContainer from "@/components/customer/AddVehicleModalContainer";
@@ -26,6 +28,9 @@ export default function CustomerPage() {
       <CustomerNav />
 
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 py-10">
+        <Suspense fallback={null}>
+          <AccountRedirectNotice />
+        </Suspense>
         <CustomerHomeView
           location={location}
           displayAddress={displayAddress}

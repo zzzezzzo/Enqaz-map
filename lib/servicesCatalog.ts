@@ -1,5 +1,15 @@
-import type { AxiosInstance } from "axios";
+import type { AxiosInstance, AxiosRequestConfig } from "axios";
 import type { ServiceOption } from "@/app/providers/profile/types";
+
+function isPlausibleEmptyListResponse(payload: unknown): boolean {
+  if (Array.isArray(payload)) return true;
+  if (payload == null) return true;
+  if (typeof payload === "object" && "data" in payload) {
+    const d = (payload as { data: unknown }).data;
+    return d == null || Array.isArray(d);
+  }
+  return false;
+}
 
 export function normalizeServicesCatalogPayload(payload: unknown): ServiceOption[] {
   const raw = Array.isArray(payload)
@@ -22,24 +32,37 @@ export function normalizeServicesCatalogPayload(payload: unknown): ServiceOption
     );
 }
 
-const SERVICE_ENDPOINTS = ["/services", "/provider/services"] as const;
+const CATALOG_GET_ATTEMPTS: ReadonlyArray<{ path: string; publicCatalog: boolean }> = [
+  { path: "/services", publicCatalog: true },
+  { path: "/services", publicCatalog: false },
+  { path: "/provider/services", publicCatalog: false },
+  { path: "/provider/services", publicCatalog: true },
+] as const;
 
 /**
  * Loads the service catalog for signup and profile UIs.
- * Tries public `/services` first, then `/provider/services` (e.g. when the API only exposes the catalog there).
+ * Tries guest and authenticated GETs so a stale token does not break public listings;
+ * `skipAuthRedirect` avoids full-page jump to login on 401 from protected routes.
  */
 export async function fetchServicesCatalog(api: AxiosInstance): Promise<{
   services: ServiceOption[];
   error: string | null;
 }> {
-  for (const url of SERVICE_ENDPOINTS) {
+  for (const { path, publicCatalog } of CATALOG_GET_ATTEMPTS) {
     try {
-      const { data } = await api.get(url);
-      console.log(data);
+      const { data } = await api.get(path, {
+        skipAuthRedirect: true,
+        publicCatalog,
+      } as AxiosRequestConfig);
       const services = normalizeServicesCatalogPayload(data);
-      return { services, error: null };
+      if (services.length > 0) {
+        return { services, error: null };
+      }
+      if (isPlausibleEmptyListResponse(data)) {
+        return { services: [], error: null };
+      }
     } catch {
-      /* try next endpoint */
+      /* try next */
     }
   }
   return {

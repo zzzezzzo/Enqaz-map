@@ -9,9 +9,19 @@ const api = axios.create({
   },
 });
 
-// Add request interceptor to include auth token
+// Add request interceptor to include auth token (omitted for public catalog GETs)
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
+  if (config.publicCatalog) {
+    const h = config.headers;
+    if (h && "delete" in h && typeof h.delete === "function") {
+      h.delete("Authorization");
+    } else {
+      const rec = h as unknown as Record<string, unknown> | undefined;
+      if (rec) delete rec.Authorization;
+    }
+    return config;
+  }
+  const token = localStorage.getItem("token");
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -23,9 +33,25 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Handle unauthorized access
-      localStorage.removeItem('token');
-      window.location.href = '/auth/login';
+      const cfg = error.config;
+      const skipByFlag = cfg?.skipAuthRedirect === true;
+      const path = typeof window !== "undefined" ? window.location.pathname : "";
+      const publicAuthPathPrefixes = [
+        "/auth/register",
+        "/auth/login",
+        "/auth/forgot-password",
+        "/auth/reset-password",
+      ] as const;
+      const onPublicAuthPage = publicAuthPathPrefixes.some(
+        (p) => path === p || path.startsWith(`${p}/`)
+      );
+      const skipRedirect = skipByFlag || onPublicAuthPage;
+      if (skipRedirect) {
+        localStorage.removeItem("token");
+        return Promise.reject(error);
+      }
+      localStorage.removeItem("token");
+      window.location.href = "/auth/login";
     }
     return Promise.reject(error);
   }
@@ -46,6 +72,10 @@ export interface RegisterData {
    * Backend should create a provider/workshop record and set admin approval to pending when applicable.
    */
   role?: 'customer' | 'provider';
+  /**
+   * Numeric role when the API uses `role_id` (e.g. `3` = provider) instead of or in addition to `role`.
+   */
+  role_id?: number;
   /** Required when `role` is `provider` — matches provider profile / workshop fields. */
   workShopName?: string;
   description?: string;

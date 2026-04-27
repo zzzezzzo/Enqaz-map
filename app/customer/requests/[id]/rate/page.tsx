@@ -7,6 +7,8 @@ import { Star } from "lucide-react";
 import CustomerNav from "@/components/layout/CustomerNav";
 import CustomerFooter from "@/components/layout/CustomerFooter";
 import { getRequestById } from "@/lib/requests";
+import { submitCustomerServiceRequestRating } from "@/lib/customerServiceRequestRating";
+import { readAuthApiErrorMessage } from "@/services/auth";
 
 const FEEDBACK_TAGS = [
   "Professional",
@@ -21,12 +23,14 @@ export default function RateExperiencePage() {
   const params = useParams();
   const router = useRouter();
   const id = typeof params.id === "string" ? params.id : "";
-  const request = getRequestById(id);
+  const mockRequest = getRequestById(id);
 
   const [rating, setRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
   const [feedback, setFeedback] = useState("");
   const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set());
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const toggleTag = (tag: string) => {
     setSelectedTags((prev) => {
@@ -37,17 +41,49 @@ export default function RateExperiencePage() {
     });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const requestIdNum = Number(id);
+  const isValidRequestId = Number.isFinite(requestIdNum) && requestIdNum > 0;
+
+  const buildComment = (): string => {
+    const parts: string[] = [];
+    const text = feedback.trim();
+    if (text) parts.push(text);
+    if (selectedTags.size) {
+      parts.push(`Tags: ${[...selectedTags].join(", ")}`);
+    }
+    return parts.join("\n\n");
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: submit rating to API
-    router.push("/customer/requests");
+    setSubmitError(null);
+    if (!isValidRequestId) {
+      setSubmitError("Invalid service request. Go back to your request history and try again.");
+      return;
+    }
+    if (rating < 1) {
+      setSubmitError("Please select a star rating before submitting.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await submitCustomerServiceRequestRating(requestIdNum, {
+        rating,
+        comment: buildComment(),
+      });
+      router.push("/customer/requests");
+    } catch (err) {
+      setSubmitError(readAuthApiErrorMessage(err));
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleSkip = () => {
     router.push("/customer/requests");
   };
 
-  if (!request) {
+  if (!isValidRequestId) {
     return (
       <div className="min-h-screen flex flex-col bg-gray-50">
         <CustomerNav />
@@ -75,11 +111,24 @@ export default function RateExperiencePage() {
 
       <main className="flex-1 bg-slate-900">
         <div className="max-w-2xl mx-auto px-4 py-10">
-          <h1 className="text-2xl md:text-3xl font-bold text-white mb-10">
+          <h1 className="text-2xl md:text-3xl font-bold text-white">
             Rate Your Experience
           </h1>
+          {mockRequest ? (
+            <p className="mt-2 text-slate-400 text-sm">
+              {mockRequest.serviceName} · {mockRequest.serviceProvider}
+            </p>
+          ) : null}
+          {submitError ? (
+            <div
+              className="mt-6 rounded-lg border border-red-400/50 bg-red-950/50 px-4 py-3 text-sm text-red-200"
+              role="alert"
+            >
+              {submitError}
+            </div>
+          ) : null}
 
-          <form onSubmit={handleSubmit} className="space-y-8">
+          <form onSubmit={handleSubmit} className="space-y-8 mt-8">
             <div>
               <p className="text-white font-medium mb-4">
                 How would you rate the service?
@@ -151,14 +200,16 @@ export default function RateExperiencePage() {
             <div className="flex flex-col sm:flex-row gap-3 pt-4">
               <button
                 type="submit"
-                className="flex-1 px-6 py-3 bg-blue-700 hover:bg-blue-600 text-white rounded-lg font-semibold transition-colors"
+                disabled={submitting}
+                className="flex-1 px-6 py-3 bg-blue-700 hover:bg-blue-600 disabled:cursor-not-allowed disabled:opacity-60 text-white rounded-lg font-semibold transition-colors"
               >
-                Submit Feedback
+                {submitting ? "Submitting…" : "Submit Feedback"}
               </button>
               <button
                 type="button"
                 onClick={handleSkip}
-                className="px-6 py-3 bg-slate-700/50 hover:bg-slate-700 text-slate-300 rounded-lg font-medium transition-colors"
+                disabled={submitting}
+                className="px-6 py-3 bg-slate-700/50 hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60 text-slate-300 rounded-lg font-medium transition-colors"
               >
                 Skip for Now
               </button>

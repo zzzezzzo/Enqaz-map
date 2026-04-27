@@ -1,4 +1,5 @@
 import type { ProviderProfileApiResponse } from "@/app/providers/profile/types";
+import { PROVIDER_ROLE_ID } from "@/lib/providerRole";
 import api, { authService } from "@/services/auth";
 import {
   PROVIDER_PENDING_APPROVAL_PATH,
@@ -16,8 +17,22 @@ export function unwrapAuthMePayload(raw: unknown): Record<string, unknown> | nul
   return r;
 }
 
-function isProviderUser(user: Record<string, unknown> | null): boolean {
+function getRoleIdFromUserPayload(user: Record<string, unknown>): unknown {
+  const top = user.role_id;
+  if (top != null) return top;
+  const inner = user.user;
+  if (inner != null && typeof inner === "object" && !Array.isArray(inner)) {
+    return (inner as Record<string, unknown>).role_id;
+  }
+  return undefined;
+}
+
+/** Public: used by route guards to choose customer vs provider vs admin destinations. */
+export function isProviderUser(user: Record<string, unknown> | null): boolean {
   if (!user) return false;
+  const rid = getRoleIdFromUserPayload(user);
+  const n = typeof rid === "number" ? rid : typeof rid === "string" ? Number(rid) : NaN;
+  if (Number.isFinite(n) && n === PROVIDER_ROLE_ID) return true;
   const role = user.role;
   if (role === "provider" || role === "Provider") return true;
   if (user.type === "provider") return true;
@@ -29,9 +44,7 @@ function isProviderUser(user: Record<string, unknown> | null): boolean {
 /** True when `/auth/me` (or wrapped `data`) indicates an administrator. */
 export function isAdminUser(user: Record<string, unknown> | null): boolean {
   if (!user) return false;
-  const role = user.role;
-  if (role === "admin" || role === "Admin" || role === "super_admin" || role === "super admin")
-    return true;
+  if (getRoleIdFromUserPayload(user) === 1) return true;
   if (user.type === "admin" || user.user_type === "admin") return true;
   if (user.is_admin === true || user.is_admin === 1) return true;
   return false;

@@ -26,12 +26,12 @@ import { authService } from "@/services/auth";
 
 const navPrimary: Array<{ href: string; icon: typeof LayoutDashboard; label: string }> = [
   { href: "/admin", icon: LayoutDashboard, label: "Dashboard" },
-  { href: "/admin/drivers", icon: Users, label: "Drivers Management" },
+  // { href: "/admin/drivers", icon: Users, label: "Drivers Management" },
   { href: "/admin/workshops", icon: Building2, label: "Workshops Management" },
-  { href: "/admin/winches", icon: Truck, label: "Winches Management" },
-  { href: "/admin/requests", icon: Activity, label: "Requests Monitoring" },
+  // { href: "/admin/winches", icon: Truck, label: "Winches Management" },
+  // { href: "/admin/requests", icon: Activity, label: "Requests Monitoring" },
   { href: "/admin/services", icon: Layers, label: "Services & Categories" },
-  { href: "/admin/reports", icon: BarChart3, label: "Reports & Analytics" },
+  // { href: "/admin/reports", icon: BarChart3, label: "Reports & Analytics" },
   { href: "/admin/accounts", icon: UserCog, label: "Admin Accounts" },
 ];
 

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import api, { readAuthApiErrorMessage } from "@/services/auth";
+import { putProviderWorkshopProfile } from "@/lib/putProviderProfile";
 import type { ProviderProfileSavePayload, WorkshopProfileForm } from "./types";
 import { useProviderProfile, uniqueServiceIdsFromProfile } from "./useProviderProfile";
 
@@ -49,26 +50,11 @@ export function useWorkshopProfileSettings() {
       longitude: form.longitude.trim(),
       services: form.services,
     };
-    const compatibilityPayload = {
-      ...payload,
-      name: payload.workShopName,
-      workshop_name: payload.workShopName,
-      service_ids: payload.services,
-    };
 
     setSaveLoading(true);
     setSaveError(null);
     try {
-      try {
-        await api.put("/provider/profile", compatibilityPayload);
-      } catch (error: unknown) {
-        const status =
-          error && typeof error === "object" && "response" in error
-            ? (error as { response?: { status?: number } }).response?.status
-            : undefined;
-        if (status !== 404) throw error;
-        await api.put("/workshop/profile", compatibilityPayload);
-      }
+      await putProviderWorkshopProfile(api, payload);
       await refetchProfile();
     } catch (err: unknown) {
       setSaveError(readAuthApiErrorMessage(err));

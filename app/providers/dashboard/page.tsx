@@ -17,7 +17,7 @@ const RequestsMap = dynamic(
 );
 
 export default function ProviderDashboard() {
-  const { data, isLoading, error, refetch, realtimeDiagnostics, authUserId } = useProviderDashboard();
+  const { data, isLoading, error, refetch, realtimeDiagnostics, authUserId, lastFetchedAt } = useProviderDashboard();
   const statsCards = data ? [
     { title: 'Total Requests Today', value: data?.service_status?.total_requests_today.toString() || '0', change: '+12%', color: 'bg-blue-500' },
     { title: 'Active Jobs', value: data?.service_status?.active_jobs.toString() || '0', change: '+8%', color: 'bg-green-500' },
@@ -32,7 +32,7 @@ export default function ProviderDashboard() {
   const reqCount = data?.income_request?.requests?.length ?? 0;
   const rt = realtimeDiagnostics;
   const rtOk = rt.privateChannel === "subscribed" && rt.wsState === "connected";
-  const channelProvMatch = rt.channelName?.match(/^provider\.(\d+)$/);
+  const channelProvMatch = rt.channelName?.match(/^[\w-]+\.(\d+)$/);
   const channelProviderId =
     channelProvMatch != null ? Number(channelProvMatch[1]) : null;
   const is403PrivateProvider =
@@ -76,6 +76,12 @@ export default function ProviderDashboard() {
         role="status"
       >
         {rtBanner}
+        {lastFetchedAt != null ? (
+          <p className="mt-2 text-xs text-slate-600">
+            Last dashboard sync: {new Date(lastFetchedAt).toLocaleTimeString()}{" "}
+            <span className="text-slate-400">(silent refresh from WebSocket or timer)</span>
+          </p>
+        ) : null}
       </div>
       {/* Stats Cards */}
       <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-2 ">
@@ -121,7 +127,7 @@ export default function ProviderDashboard() {
             </div>
           </div>
           <div className="space-y-4 p-4">
-            {data?.income_request?.requests?.slice(0, 5).map((request) => (
+            {data?.income_request?.requests?.slice(0, 20).map((request) => (
               <div 
               className="rounded-lg border border-gray-200 bg-white px-4 py-3"
               key={request.id}

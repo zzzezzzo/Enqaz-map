@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Building2, Eye, EyeOff, Mail, Lock, User, MapPin } from 'lucide-react';
 import api, { authService, readAuthApiErrorMessage } from '@/services/auth';
+import { PROVIDER_ROLE_ID } from '@/lib/providerRole';
+import { putProviderWorkshopProfile } from '@/lib/putProviderProfile';
 import { fetchServicesCatalog } from '@/lib/servicesCatalog';
 import type { ServiceOption } from '@/app/providers/profile/types';
 import { resolvePostRegisterDestination } from '@/lib/postRegisterRedirect';
@@ -157,12 +159,24 @@ export default function RegisterPage() {
           password: formData.password,
           password_confirmation: formData.confirmPassword,
           role: 'provider',
+          role_id: PROVIDER_ROLE_ID,
           workShopName: workShopName.trim(),
           description: workshopDescription.trim(),
           latitude: latitude.trim(),
           longitude: longitude.trim(),
           services: selectedServiceIds,
         });
+        await putProviderWorkshopProfile(
+          api,
+          {
+            workShopName: workShopName.trim(),
+            description: workshopDescription.trim(),
+            latitude: latitude.trim(),
+            longitude: longitude.trim(),
+            services: selectedServiceIds,
+          },
+          { includeRoleId: true }
+        );
       }
 
       const next = await resolvePostRegisterDestination();

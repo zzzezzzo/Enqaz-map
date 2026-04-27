@@ -1,5 +1,5 @@
-import axios from "axios";
 import api, { readAuthApiErrorMessage } from "@/services/auth";
+import { createAdminService } from "@/lib/adminServicesApi";
 import { fetchServicesCatalog } from "@/lib/servicesCatalog";
 import type { ServiceOption } from "@/app/providers/profile/types";
 
@@ -140,23 +140,7 @@ export async function createCatalogServiceAdmin(input: {
   name: string;
   description?: string;
 }): Promise<void> {
-  const body = {
-    name: input.name.trim(),
-    description: (input.description ?? "").trim(),
-  };
-  const urls = ["/admin/services", "/services"];
-
-  let lastError: unknown;
-  for (const url of urls) {
-    try {
-      await api.post(url, body);
-      return;
-    } catch (e) {
-      lastError = e;
-      if (axios.isAxiosError(e) && e.response?.status === 404) continue;
-    }
-  }
-  throw new Error(lastError ? readAuthApiErrorMessage(lastError) : "Could not create service.");
+  return createAdminService(input);
 }
 
 export async function loadServicesCatalogForAdmin(): Promise<{

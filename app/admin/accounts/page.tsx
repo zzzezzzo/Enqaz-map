@@ -1,5 +1,9 @@
-import AdminComingSoon from "@/components/admin/AdminComingSoon";
+"use client";
+
+import { AdminAccountsView } from "./AdminAccountsView";
+import { useAdminAccounts } from "./useAdminAccounts";
 
 export default function AdminAccountsPage() {
-  return <AdminComingSoon title="Admin accounts" />;
+  const { viewProps } = useAdminAccounts();
+  return <AdminAccountsView {...viewProps} />;
 }

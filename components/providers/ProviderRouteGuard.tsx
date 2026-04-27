@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import axios from "axios";
 import type { ProviderProfileApiResponse } from "@/app/providers/profile/types";
 import api from "@/services/auth";
 import {
@@ -39,8 +40,14 @@ export default function ProviderRouteGuard({
           router.replace(`${PROVIDER_PENDING_APPROVAL_PATH}${suffix}`);
           return;
         }
-      } catch {
-        // Non-provider accounts or network errors: still render; API routes will enforce auth.
+      } catch (e) {
+        if (cancelled) return;
+        if (axios.isAxiosError(e) && (e.response?.status === 403 || e.response?.status === 404)) {
+          redirected = true;
+          router.replace("/customer?accountNotice=not-provider");
+          return;
+        }
+        // Other errors: still allow shell render; per-route API will show errors.
       } finally {
         if (!cancelled && !redirected) setAllowed(true);
       }
