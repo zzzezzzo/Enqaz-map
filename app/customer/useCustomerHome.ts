@@ -19,6 +19,15 @@ export interface NearestProvider {
   distanceKm: number | null;
   phone: string | null;
   services: ServiceOption[];
+  /** Workshop coordinates when the API returns them */
+  latitude: number | null;
+  longitude: number | null;
+}
+
+function parseCoord(value: unknown): number | null {
+  if (value == null || value === "") return null;
+  const n = typeof value === "number" ? value : Number(String(value).trim());
+  return Number.isFinite(n) ? n : null;
 }
 
 export interface ServiceOption {
@@ -78,52 +87,61 @@ export function useCustomerHome() {
                 ? response.data.data
                 : [];
 
-            const normalized: NearestProvider[] = raw.map((item: any) => {
-              const provider = item?.data ?? item;
-              console.log(provider);
+            const normalized: NearestProvider[] = raw
+              .map((item: any) => {
+                const provider = item?.data ?? item;
+                const loc =
+                  provider?.workShop_location ??
+                  provider?.workshop_location ??
+                  provider?.workShopLocation ??
+                  provider?.workshopLocation;
 
-            //   const services: ServiceOption[] = servicesRaw
-            //     .map((s: any) => {
-            //       const service_id =
-            //         s?.pivot?.service_id != null
-            //           ? Number(s.pivot.service_id)
-            //           : s?.service_id != null
-            //             ? Number(s.service_id)
-            //             : s?.id != null
-            //               ? Number(s.id)
-            //               : NaN;
+                const latitude =
+                  parseCoord(provider?.latitude) ??
+                  parseCoord(provider?.lat) ??
+                  parseCoord(loc?.latitude) ??
+                  parseCoord(loc?.lat) ??
+                  parseCoord(item?.latitude) ??
+                  parseCoord(item?.lat);
 
-            //       const id = Number.isFinite(service_id) ? service_id : NaN;
+                const longitude =
+                  parseCoord(provider?.longitude) ??
+                  parseCoord(provider?.lng) ??
+                  parseCoord(loc?.longitude) ??
+                  parseCoord(loc?.lng) ??
+                  parseCoord(item?.longitude) ??
+                  parseCoord(item?.lng);
 
-            //       const name =
-            //         s?.name != null ? String(s.name) : s?.title != null ? String(s.title) : "";
+                const rawId = provider?.id ?? item?.id;
+                const id = typeof rawId === "number" ? rawId : Number(rawId);
 
-            //       return {
-            //         id,
-            //         name,
-            //       };
-            //     })
-            //     .filter((s: ServiceOption) => Number.isFinite(s.id) && s.name);
-
-              return {
-                id: String(provider?.id ?? item?.id ?? ""),
-                name: String(
-                  provider?.workShopName ??
-                    provider?.workshopName ??
-                    provider?.provider_name ??
-                    provider?.name ??
-                    "Provider"
-                ),
-                description: String(provider?.description ?? ""),
-                distanceKm:
-                  item?.distance != null
-                    ? Number(item.distance)
-                    : item?.distance_km != null
-                      ? Number(item.distance_km)
-                      : null,
-                phone: provider?.phone ?? provider?.provider_phone ?? provider?.user?.phone ?? null,
-              };
-            });
+                return {
+                  id: Number.isFinite(id) ? id : NaN,
+                  name: String(
+                    provider?.workShopName ??
+                      provider?.workshopName ??
+                      provider?.provider_name ??
+                      provider?.name ??
+                      "Provider"
+                  ),
+                  description: String(provider?.description ?? ""),
+                  distanceKm:
+                    item?.distance != null
+                      ? Number(item.distance)
+                      : item?.distance_km != null
+                        ? Number(item.distance_km)
+                        : null,
+                  phone:
+                    provider?.phone ??
+                    provider?.provider_phone ??
+                    provider?.user?.phone ??
+                    null,
+                  services: [] as ServiceOption[],
+                  latitude,
+                  longitude,
+                };
+              })
+              .filter((p: NearestProvider) => Number.isFinite(p.id));
 
             setNearestProviders(normalized);
           })

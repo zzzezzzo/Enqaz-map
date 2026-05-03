@@ -331,14 +331,14 @@ export function useServiceRequest({
       ) {
         provider_id = providerIdParam;
       } else {
-        try {
-          const raw = localStorage.getItem("selected_provider_id");
-          provider_id = raw ? Number(raw) : null;
-          if (provider_id != null && Number.isNaN(provider_id))
-            provider_id = null;
-        } catch {
-          provider_id = null;
-        }
+        // try {
+        //   const raw = localStorage.getItem("selected_provider_id");
+        //   provider_id = raw ? Number(raw) : null;
+        //   if (provider_id != null && Number.isNaN(provider_id))
+        //     provider_id = null;
+        // } catch {
+        //   provider_id = null;
+        // }
       }
     }
 

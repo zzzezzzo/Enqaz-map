@@ -1,8 +1,10 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { useMemo } from "react";
 import { Info, MapPin, Phone } from "lucide-react";
 import type { LocationState, NearestProvider } from "@/app/customer/useCustomerHome";
+import type { WorkshopMapPoint } from "@/components/customer/CustomerLocationMap";
 
 const CustomerLocationMap = dynamic(
   () => import("@/components/customer/CustomerLocationMap"),
@@ -35,6 +37,26 @@ export default function CustomerHomeView({
   providersError,
   onSelectProvider,
 }: CustomerHomeViewProps) {
+  const workshopMapPoints: WorkshopMapPoint[] = useMemo(
+    () =>
+      nearestProviders
+        .filter(
+          (p) =>
+            p.latitude != null &&
+            p.longitude != null &&
+            Number.isFinite(p.latitude) &&
+            Number.isFinite(p.longitude)
+        )
+        .map((p) => ({
+          id: p.id,
+          lat: p.latitude as number,
+          lng: p.longitude as number,
+          name: p.name,
+          description: p.description,
+        })),
+    [nearestProviders]
+  );
+
   return (
     <>
       <p className="text-center text-xl font-semibold text-gray-800 mb-6">
@@ -67,6 +89,7 @@ export default function CustomerHomeView({
               lng={location.lng}
               zoom={16}
               className="rounded-2xl"
+              workshops={workshopMapPoints}
             />
           ) : null}
         </div>
