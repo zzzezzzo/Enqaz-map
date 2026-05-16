@@ -3,12 +3,14 @@
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
 import { Navigation, Route } from "lucide-react";
+import AssignedMechanicPanel from "@/components/customer/AssignedMechanicPanel";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import CustomerNav from "@/components/layout/CustomerNav";
 import CustomerFooter from "@/components/layout/CustomerFooter";
 import { useCustomerServiceRequests } from "../../useCustomerServiceRequests";
 import echo, { syncEchoBroadcastAuth } from "@/lib/echo";
+import { extractMechanicLatLng } from "@/lib/mechanics/extractCoords";
 
 const RequestsMap = dynamic(() => import("@/components/map/RequestsMap"), {
   ssr: false,
@@ -36,6 +38,11 @@ export default function RequestTrackingPage() {
     lat: number | null;
     lng: number | null;
   }>({ lat: null, lng: null });
+  const [liveMechanicCoords, setLiveMechanicCoords] = useState<{
+    lat: number | null;
+    lng: number | null;
+    name?: string;
+  }>({ lat: null, lng: null });
   const [gpsError, setGpsError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -46,6 +53,11 @@ export default function RequestTrackingPage() {
     setLiveWorkshopCoords({
       lat: request?.workshopLatitude ?? null,
       lng: request?.workshopLongitude ?? null,
+    });
+    setLiveMechanicCoords({
+      lat: request?.mechanicLatitude ?? null,
+      lng: request?.mechanicLongitude ?? null,
+      name: request?.assignedMechanicName,
     });
   }, [request]);
 
@@ -138,12 +150,20 @@ export default function RequestTrackingPage() {
     const onAnyEvent = (_eventName: string, payload: unknown) => {
       const customer = extractLatLng(payload, "customer");
       const workshop = extractLatLng(payload, "workshop");
+      const mechanic = extractMechanicLatLng(payload);
 
       if (customer.lat != null && customer.lng != null) {
         setLiveCustomerCoords(customer);
       }
       if (workshop.lat != null && workshop.lng != null) {
         setLiveWorkshopCoords(workshop);
+      }
+      if (mechanic.lat != null && mechanic.lng != null) {
+        setLiveMechanicCoords({
+          lat: mechanic.lat,
+          lng: mechanic.lng,
+          name: mechanic.name,
+        });
       }
     };
 
@@ -159,11 +179,17 @@ export default function RequestTrackingPage() {
   const customerLng = liveCustomerCoords.lng ?? request?.customerLongitude ?? null;
   const workshopLat = liveWorkshopCoords.lat ?? request?.workshopLatitude ?? null;
   const workshopLng = liveWorkshopCoords.lng ?? request?.workshopLongitude ?? null;
+  const mechanicLat = liveMechanicCoords.lat ?? request?.mechanicLatitude ?? null;
+  const mechanicLng = liveMechanicCoords.lng ?? request?.mechanicLongitude ?? null;
+  const mechanicName =
+    liveMechanicCoords.name ?? request?.assignedMechanicName ?? "Mechanic";
 
   const hasCustomerPoint = customerLat != null && customerLng != null;
   const hasWorkshopPoint = workshopLat != null && workshopLng != null;
-  const hasMapRoute = hasCustomerPoint && hasWorkshopPoint;
-  const canRenderMap = hasCustomerPoint || hasWorkshopPoint;
+  const hasMechanicPoint = mechanicLat != null && mechanicLng != null;
+  const hasMapRoute =
+    hasCustomerPoint && (hasMechanicPoint || hasWorkshopPoint);
+  const canRenderMap = hasCustomerPoint || hasWorkshopPoint || hasMechanicPoint;
 
   const mapsDirectionsUrl = useMemo(() => {
     if (
@@ -193,9 +219,20 @@ export default function RequestTrackingPage() {
 
   const mapCenter = useMemo<[number, number] | null>(() => {
     if (hasCustomerPoint) return [customerLat!, customerLng!];
+    if (hasMechanicPoint) return [mechanicLat!, mechanicLng!];
     if (hasWorkshopPoint) return [workshopLat!, workshopLng!];
     return null;
-  }, [customerLat, customerLng, hasCustomerPoint, hasWorkshopPoint, workshopLat, workshopLng]);
+  }, [
+    customerLat,
+    customerLng,
+    hasCustomerPoint,
+    hasMechanicPoint,
+    hasWorkshopPoint,
+    mechanicLat,
+    mechanicLng,
+    workshopLat,
+    workshopLng,
+  ]);
 
   const mapMarkers = useMemo(() => {
     const markers: Array<{
@@ -204,7 +241,7 @@ export default function RequestTrackingPage() {
       lng: number;
       label: string;
       subtitle: string;
-      type: "customer" | "workshop";
+      type: "customer" | "workshop" | "driver";
     }> = [];
 
     if (hasCustomerPoint) {
@@ -218,7 +255,16 @@ export default function RequestTrackingPage() {
       });
     }
 
-    if (hasWorkshopPoint) {
+    if (hasMechanicPoint) {
+      markers.push({
+        id: 2,
+        lat: mechanicLat!,
+        lng: mechanicLng!,
+        label: mechanicName,
+        subtitle: request?.dispatchStatus ?? "On the way",
+        type: "driver",
+      });
+    } else if (hasWorkshopPoint) {
       markers.push({
         id: 2,
         lat: workshopLat!,
@@ -234,7 +280,12 @@ export default function RequestTrackingPage() {
     customerLat,
     customerLng,
     hasCustomerPoint,
+    hasMechanicPoint,
     hasWorkshopPoint,
+    mechanicLat,
+    mechanicLng,
+    mechanicName,
+    request?.dispatchStatus,
     request?.serviceProvider,
     workshopLat,
     workshopLng,
@@ -289,8 +340,16 @@ export default function RequestTrackingPage() {
             <p className="text-sm text-gray-500">
               Status: <span className="font-medium text-gray-700">{request.statusLabel ?? request.status}</span>
             </p>
+            {hasMechanicPoint ? (
+              <p className="text-sm text-orange-700">
+                {mechanicName} is on the way to you
+                {request.dispatchStatus ? ` (${request.dispatchStatus})` : ""}
+              </p>
+            ) : null}
             {gpsError ? <p className="text-xs text-amber-700">{gpsError}</p> : null}
           </div>
+
+          <AssignedMechanicPanel request={request} variant="panel" />
 
           <div className="h-72 overflow-hidden rounded-2xl border border-gray-100">
             {canRenderMap && mapCenter ? (
@@ -300,10 +359,15 @@ export default function RequestTrackingPage() {
                 markers={mapMarkers}
                 route={
                   hasMapRoute
-                    ? {
-                        from: [customerLat!, customerLng!],
-                        to: [workshopLat!, workshopLng!],
-                      }
+                    ? hasMechanicPoint
+                      ? {
+                          from: [mechanicLat!, mechanicLng!],
+                          to: [customerLat!, customerLng!],
+                        }
+                      : {
+                          from: [workshopLat!, workshopLng!],
+                          to: [customerLat!, customerLng!],
+                        }
                     : undefined
                 }
               />
@@ -315,8 +379,10 @@ export default function RequestTrackingPage() {
           </div>
 
           <p className="text-xs text-gray-500">
-            Live coords - You: {customerLat?.toFixed(5) ?? "—"}, {customerLng?.toFixed(5) ?? "—"} | Workshop:{" "}
-            {workshopLat?.toFixed(5) ?? "—"}, {workshopLng?.toFixed(5) ?? "—"}
+            Live coords - You: {customerLat?.toFixed(5) ?? "—"}, {customerLng?.toFixed(5) ?? "—"}
+            {hasMechanicPoint
+              ? ` | Mechanic: ${mechanicLat?.toFixed(5) ?? "—"}, ${mechanicLng?.toFixed(5) ?? "—"}`
+              : ` | Workshop: ${workshopLat?.toFixed(5) ?? "—"}, ${workshopLng?.toFixed(5) ?? "—"}`}
           </p>
 
           <div className="flex flex-wrap gap-3">

@@ -17,6 +17,13 @@ interface ApiActiveRequest {
   description?: string;
   service_name?: string;
   status?: string;
+  assigned_mechanic_id?: number;
+  mechanic_id?: number;
+  assigned_mechanic?: { id?: number; name?: string };
+  mechanic?: { id?: number; name?: string };
+  mechanic_latitude?: string | number;
+  mechanic_longitude?: string | number;
+  dispatch_status?: string;
 }
 
 interface ActiveRequestsPayload {
@@ -37,6 +44,11 @@ export interface ProviderActiveRequest {
   description: string;
   serviceName: string;
   status: string;
+  assignedMechanicId?: number;
+  assignedMechanicName?: string;
+  mechanicLatitude?: number;
+  mechanicLongitude?: number;
+  dispatchStatus?: string;
 }
 
 export interface ProviderWorkshopLocation {
@@ -59,16 +71,34 @@ function toNumber(value?: string): number {
 
 function normalizeRequests(data?: ApiActiveRequest[]): ProviderActiveRequest[] {
   if (!Array.isArray(data)) return [];
-  return data.map((request) => ({
-    id: request.id,
-    vehicleDetails: request.vehicle_details ?? "-",
-    latitude: toNumber(request.latitude),
-    longitude: toNumber(request.longitude),
-    customerName: request.customer_name ?? "Unknown customer",
-    description: request.description ?? "-",
-    serviceName: request.service_name ?? "-",
-    status: request.status ?? "accepted",
-  }));
+  return data.map((request) => {
+    const mechanic =
+      request.assigned_mechanic ?? request.mechanic ?? null;
+    const mechanicId =
+      request.assigned_mechanic_id ??
+      request.mechanic_id ??
+      mechanic?.id;
+    return {
+      id: request.id,
+      vehicleDetails: request.vehicle_details ?? "-",
+      latitude: toNumber(request.latitude),
+      longitude: toNumber(request.longitude),
+      customerName: request.customer_name ?? "Unknown customer",
+      description: request.description ?? "-",
+      serviceName: request.service_name ?? "-",
+      status: request.status ?? "accepted",
+      assignedMechanicId:
+        mechanicId != null && Number.isFinite(Number(mechanicId))
+          ? Number(mechanicId)
+          : undefined,
+      assignedMechanicName: mechanic?.name ? String(mechanic.name) : undefined,
+      mechanicLatitude: toNumber(String(request.mechanic_latitude ?? "")) || undefined,
+      mechanicLongitude: toNumber(String(request.mechanic_longitude ?? "")) || undefined,
+      dispatchStatus: request.dispatch_status
+        ? String(request.dispatch_status)
+        : undefined,
+    };
+  });
 }
 
 export function useProviderActiveRequests() {

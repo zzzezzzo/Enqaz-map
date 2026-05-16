@@ -8,6 +8,7 @@ import {
   LayoutDashboard,
   Inbox,
   Wrench,
+  Users,
   CheckCircle,
   DollarSign,
   Settings,
@@ -29,6 +30,7 @@ const menuItems = [
   { href: "/providers/dashboard", icon: LayoutDashboard, label: "Dashboard" },
   { href: "/providers/requests", icon: Inbox, label: "Incoming Requests" },
   { href: "/providers/active-jobs", icon: Wrench, label: "Active Jobs" },
+  { href: "/providers/mechanics", icon: Users, label: "Mechanics" },
   { href: "/providers/completed-jobs", icon: CheckCircle, label: "Completed Jobs" },
   { href: "/providers/profile", icon: Settings, label: "Profile & Settings" },
 ];

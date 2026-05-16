@@ -13,6 +13,7 @@ import {
   MessageSquare,
 } from "lucide-react";
 import type { ServiceRequest } from "@/lib/requests";
+import AssignedMechanicPanel from "@/components/customer/AssignedMechanicPanel";
 
 const statusStyles: Record<ServiceRequest["status"], string> = {
   pending: "bg-orange-500 text-white",
@@ -113,6 +114,12 @@ export default function RequestCard({
           </p>
         ) : null}
       </div>
+
+      {(request.status === "pending" ||
+        request.status === "accepted" ||
+        request.status === "in_progress") && (
+        <AssignedMechanicPanel request={request} variant="card" />
+      )}
 
       <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-gray-100">
         {request.cost !== undefined ? (

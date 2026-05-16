@@ -27,6 +27,12 @@ export interface ServiceRequest {
   customerLongitude?: number;
   workshopLatitude?: number;
   workshopLongitude?: number;
+  mechanicLatitude?: number;
+  mechanicLongitude?: number;
+  assignedMechanicId?: number;
+  assignedMechanicName?: string;
+  assignedMechanicPhone?: string;
+  dispatchStatus?: string;
 }
 
 export const MOCK_REQUESTS: ServiceRequest[] = [

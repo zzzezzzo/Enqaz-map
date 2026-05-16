@@ -2,7 +2,9 @@
 
 import { useMemo, useState } from "react";
 import dynamic from "next/dynamic";
-import { Car, CheckCircle2, Clock3, MapPin, User } from "lucide-react";
+import { Car, CheckCircle2, Clock3, MapPin, User, UserPlus } from "lucide-react";
+import AssignMechanicModal from "@/components/providers/mechanics/AssignMechanicModal";
+import type { WorkshopMechanic } from "@/lib/mechanics/types";
 import {
   type ActiveRequestStatus,
   type ProviderActiveRequest,
@@ -21,9 +23,14 @@ const RequestsMap = dynamic(() => import("@/components/map/RequestsMap"), {
 interface ActiveJobsViewProps {
   requests: ProviderActiveRequest[];
   workshopLocation: ProviderWorkshopLocation;
+  mechanics: WorkshopMechanic[];
+  mechanicsLoading?: boolean;
   actionError?: string | null;
+  assignError?: string | null;
   updatingRequestId?: number | null;
+  assigningRequestId?: number | null;
   onUpdateStatus: (requestId: number, status: ActiveRequestStatus) => Promise<boolean>;
+  onAssignMechanic: (requestId: number, mechanicId: number) => Promise<void>;
 }
 
 function toStatusLabel(status: string): string {
@@ -95,12 +102,18 @@ function statusBadgeClass(status: string): string {
 export default function ActiveJobsView({
   requests,
   workshopLocation,
+  mechanics,
+  mechanicsLoading,
   actionError,
+  assignError,
   updatingRequestId,
+  assigningRequestId,
   onUpdateStatus,
+  onAssignMechanic,
 }: ActiveJobsViewProps) {
   const [selectedJobId, setSelectedJobId] = useState<number | null>(requests[0]?.id ?? null);
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
+  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [nextStatus, setNextStatus] = useState<ActiveRequestStatus>("accepted");
 
   const selectedJob = useMemo(() => {
@@ -108,6 +121,69 @@ export default function ActiveJobsView({
     const found = requests.find((job) => job.id === selectedJobId);
     return found ?? requests[0];
   }, [requests, selectedJobId]);
+
+  const mapMarkers = useMemo(() => {
+    if (!selectedJob) return [];
+    const markers: Array<{
+      id: number;
+      lat: number;
+      lng: number;
+      label: string;
+      subtitle: string;
+      type: "workshop" | "customer" | "driver";
+    }> = [
+      {
+        id: 1,
+        lat: workshopLocation.latitude,
+        lng: workshopLocation.longitude,
+        label: "Workshop",
+        subtitle: "Your location",
+        type: "workshop",
+      },
+      {
+        id: selectedJob.id,
+        lat: selectedJob.latitude,
+        lng: selectedJob.longitude,
+        label: selectedJob.customerName,
+        subtitle: selectedJob.serviceName,
+        type: "customer",
+      },
+    ];
+    if (
+      selectedJob.mechanicLatitude != null &&
+      selectedJob.mechanicLongitude != null &&
+      selectedJob.mechanicLatitude !== 0 &&
+      selectedJob.mechanicLongitude !== 0
+    ) {
+      markers.push({
+        id: selectedJob.id + 10000,
+        lat: selectedJob.mechanicLatitude,
+        lng: selectedJob.mechanicLongitude,
+        label: selectedJob.assignedMechanicName ?? "Mechanic",
+        subtitle: selectedJob.dispatchStatus ?? "En route",
+        type: "driver",
+      });
+    }
+    return markers;
+  }, [selectedJob, workshopLocation]);
+
+  const mapRoute = useMemo(() => {
+    if (!selectedJob) return undefined;
+    if (
+      selectedJob.mechanicLatitude != null &&
+      selectedJob.mechanicLongitude != null &&
+      selectedJob.mechanicLatitude !== 0
+    ) {
+      return {
+        from: [selectedJob.mechanicLatitude, selectedJob.mechanicLongitude] as [number, number],
+        to: [selectedJob.latitude, selectedJob.longitude] as [number, number],
+      };
+    }
+    return {
+      from: [workshopLocation.latitude, workshopLocation.longitude] as [number, number],
+      to: [selectedJob.latitude, selectedJob.longitude] as [number, number],
+    };
+  }, [selectedJob, workshopLocation]);
 
   if (!selectedJob) {
     return (
@@ -125,9 +201,12 @@ export default function ActiveJobsView({
           {requests.length} Active
         </span>
       </div>
-      {actionError && (
+      {actionError ? (
         <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{actionError}</div>
-      )}
+      ) : null}
+      {assignError ? (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">{assignError}</div>
+      ) : null}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-3">
@@ -168,28 +247,8 @@ export default function ActiveJobsView({
             <RequestsMap
               center={[workshopLocation.latitude, workshopLocation.longitude]}
               zoom={12}
-              markers={[
-                {
-                  id: 1,
-                  lat: workshopLocation.latitude,
-                  lng: workshopLocation.longitude,
-                  label: "Workshop",
-                  subtitle: "Your location",
-                  type: "workshop",
-                },
-                {
-                  id: selectedJob.id,
-                  lat: selectedJob.latitude,
-                  lng: selectedJob.longitude,
-                  label: selectedJob.customerName,
-                  subtitle: selectedJob.serviceName,
-                  type: "customer",
-                },
-              ]}
-              route={{
-                from: [workshopLocation.latitude, workshopLocation.longitude],
-                to: [selectedJob.latitude, selectedJob.longitude],
-              }}
+              markers={mapMarkers}
+              route={mapRoute}
             />
           </div>
         </div>
@@ -211,7 +270,22 @@ export default function ActiveJobsView({
                 <span>{selectedJob.description}</span>
               </div>
             </div>
-            
+            {selectedJob.assignedMechanicName ? (
+              <p className="mt-3 text-xs text-slate-600">
+                Assigned:{" "}
+                <span className="font-semibold text-slate-800">{selectedJob.assignedMechanicName}</span>
+                {selectedJob.dispatchStatus ? ` · ${selectedJob.dispatchStatus}` : null}
+              </p>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => setIsAssignModalOpen(true)}
+              disabled={assigningRequestId === selectedJob.id}
+              className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-lg border border-orange-300 bg-orange-50 px-4 py-2 text-xs font-semibold text-orange-800 hover:bg-orange-100 disabled:opacity-60"
+            >
+              <UserPlus className="h-3.5 w-3.5" />
+              {selectedJob.assignedMechanicId ? "Reassign mechanic" : "Assign mechanic"}
+            </button>
           </div>
 
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -311,6 +385,17 @@ export default function ActiveJobsView({
           </div>
         </div>
       )}
+
+      <AssignMechanicModal
+        open={isAssignModalOpen}
+        requestLabel={`${selectedJob.customerName} — ${selectedJob.serviceName}`}
+        mechanics={mechanics}
+        loading={mechanicsLoading}
+        onClose={() => setIsAssignModalOpen(false)}
+        onAssign={async (mechanicId) => {
+          await onAssignMechanic(selectedJob.id, mechanicId);
+        }}
+      />
     </div>
   );
 }

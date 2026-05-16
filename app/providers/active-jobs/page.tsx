@@ -1,9 +1,17 @@
 "use client";
 
+import { useCallback, useEffect, useState } from "react";
 import ActiveJobsView from "./ActiveJobsView";
 import { useProviderActiveRequests } from "./useProviderActiveRequests";
+import { assignMechanicToRequest, fetchProviderMechanics } from "@/lib/mechanics/providerMechanicsApi";
+import type { WorkshopMechanic } from "@/lib/mechanics/types";
+import { useProviderProfile } from "@/app/providers/profile/useProviderProfile";
+import { readAuthApiErrorMessage } from "@/services/auth";
 
 export default function ProviderActiveJobsPage() {
+  const { profile } = useProviderProfile();
+  const workshopId = profile?.id ?? null;
+
   const {
     requests,
     workshopLocation,
@@ -15,6 +23,53 @@ export default function ProviderActiveJobsPage() {
     updateRequestStatus,
     refetch,
   } = useProviderActiveRequests();
+
+  const [mechanics, setMechanics] = useState<WorkshopMechanic[]>([]);
+  const [mechanicsLoading, setMechanicsLoading] = useState(true);
+  const [assignError, setAssignError] = useState<string | null>(null);
+  const [assigningRequestId, setAssigningRequestId] = useState<number | null>(null);
+
+  const loadMechanics = useCallback(async () => {
+    if (workshopId == null) {
+      setMechanics([]);
+      setMechanicsLoading(false);
+      return;
+    }
+    setMechanicsLoading(true);
+    try {
+      setMechanics(await fetchProviderMechanics(workshopId));
+    } catch {
+      setMechanics([]);
+    } finally {
+      setMechanicsLoading(false);
+    }
+  }, [workshopId]);
+
+  useEffect(() => {
+    void loadMechanics();
+  }, [loadMechanics]);
+
+  const onAssignMechanic = useCallback(
+    async (requestId: number, mechanicId: number) => {
+      setAssigningRequestId(requestId);
+      setAssignError(null);
+      try {
+        await assignMechanicToRequest(
+          requestId,
+          mechanicId,
+          workshopId ?? undefined
+        );
+        await refetch();
+      } catch (err: unknown) {
+        const msg = readAuthApiErrorMessage(err);
+        setAssignError(msg);
+        throw new Error(msg);
+      } finally {
+        setAssigningRequestId(null);
+      }
+    },
+    [refetch, workshopId]
+  );
 
   if (isLoading) {
     return <div className="text-sm text-gray-500">Loading active jobs...</div>;
@@ -47,9 +102,14 @@ export default function ProviderActiveJobsPage() {
     <ActiveJobsView
       requests={requests}
       workshopLocation={workshopLocation}
+      mechanics={mechanics}
+      mechanicsLoading={mechanicsLoading}
       actionError={actionError}
+      assignError={assignError}
       updatingRequestId={updatingRequestId}
+      assigningRequestId={assigningRequestId}
       onUpdateStatus={updateRequestStatus}
+      onAssignMechanic={onAssignMechanic}
     />
   );
 }

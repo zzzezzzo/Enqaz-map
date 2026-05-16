@@ -87,6 +87,32 @@ export type ApiCustomerServiceRequest = {
     lat?: string | number;
     lng?: string | number;
   };
+  assigned_mechanic_id?: number;
+  mechanic_id?: number;
+  mechanic_latitude?: string | number;
+  mechanic_longitude?: string | number;
+  mechanic_name?: string;
+  dispatch_status?: string;
+  assigned_mechanic?: {
+    id?: number;
+    name?: string;
+    phone?: string;
+    phone_number?: string;
+    latitude?: string | number;
+    longitude?: string | number;
+    lat?: string | number;
+    lng?: string | number;
+  };
+  mechanic?: {
+    id?: number;
+    name?: string;
+    phone?: string;
+    phone_number?: string;
+    latitude?: string | number;
+    longitude?: string | number;
+    lat?: string | number;
+    lng?: string | number;
+  };
 };
 
 function mapApiStatus(name: string | undefined): {
@@ -174,6 +200,17 @@ export function mapApiRowToServiceRequest(
     parseCoord(workshopLocation?.longitude) ??
     parseCoord(workshopLocation?.lng);
 
+  const mechanic =
+    r.assigned_mechanic ?? r.mechanic ?? null;
+  const mechanicLatitude =
+    parseCoord(r.mechanic_latitude) ??
+    parseCoord(mechanic?.latitude) ??
+    parseCoord(mechanic?.lat);
+  const mechanicLongitude =
+    parseCoord(r.mechanic_longitude) ??
+    parseCoord(mechanic?.longitude) ??
+    parseCoord(mechanic?.lng);
+
   return {
     id: String(id),
     serviceName: String(r.service?.name ?? "Service"),
@@ -192,6 +229,28 @@ export function mapApiRowToServiceRequest(
     customerLongitude,
     workshopLatitude,
     workshopLongitude,
+    mechanicLatitude,
+    mechanicLongitude,
+    assignedMechanicId:
+      r.assigned_mechanic_id != null
+        ? Number(r.assigned_mechanic_id)
+        : r.mechanic_id != null
+          ? Number(r.mechanic_id)
+          : mechanic?.id != null
+            ? Number(mechanic.id)
+            : undefined,
+    assignedMechanicName: mechanic?.name
+      ? String(mechanic.name)
+      : r.mechanic_name
+        ? String(r.mechanic_name)
+        : undefined,
+    assignedMechanicPhone:
+      mechanic?.phone != null
+        ? String(mechanic.phone)
+        : mechanic?.phone_number != null
+          ? String(mechanic.phone_number)
+          : undefined,
+    dispatchStatus: r.dispatch_status ? String(r.dispatch_status) : undefined,
   };
 }
 
