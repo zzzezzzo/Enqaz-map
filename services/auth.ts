@@ -78,11 +78,19 @@ export interface RegisterData {
   role_id?: number;
   /** Required when `role` is `provider` — matches provider profile / workshop fields. */
   workShopName?: string;
+  /** Laravel / snake_case alias for `workShopName`. */
+  workshop_name?: string;
   description?: string;
   latitude?: string;
   longitude?: string;
   /** Service catalog IDs to attach to the new workshop. */
   services?: number[];
+  /** Same as `services` — some backends only read `service_ids`. */
+  service_ids?: number[];
+  /** Workshop hours (24-hour `HH:MM` strings), same as provider profile. */
+  opening_time?: string;
+  closeing_time?: string;
+  closing_time?: string;
 }
 
 export interface AuthResponse {

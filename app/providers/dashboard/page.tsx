@@ -69,20 +69,20 @@ export default function ProviderDashboard() {
       <h2 className="mb-6 text-2xl font-bold text-gray-900">
         Dashboard Overview
       </h2>
-      <div
+      {/* <div
         className={`mb-4 rounded-lg border px-4 py-3 text-sm ${
           rtOk ? "border-green-200 bg-green-50 text-green-900" : rt.privateChannel === "error" ? "border-red-200 bg-red-50 text-red-900" : "border-amber-200 bg-amber-50 text-amber-900"
         }`}
         role="status"
-      >
-        {rtBanner}
-        {lastFetchedAt != null ? (
+      > */}
+        {/* {rtBanner} */}
+        {/* {lastFetchedAt != null ? (
           <p className="mt-2 text-xs text-slate-600">
             Last dashboard sync: {new Date(lastFetchedAt).toLocaleTimeString()}{" "}
             <span className="text-slate-400">(silent refresh from WebSocket or timer)</span>
           </p>
-        ) : null}
-      </div>
+        ) : null} */}
+      {/* </div> */}
       {/* Stats Cards */}
       <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-2 ">
         {statsCards.map((card, index) => (

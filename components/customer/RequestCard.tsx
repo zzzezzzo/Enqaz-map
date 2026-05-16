@@ -16,6 +16,8 @@ import type { ServiceRequest } from "@/lib/requests";
 
 const statusStyles: Record<ServiceRequest["status"], string> = {
   pending: "bg-orange-500 text-white",
+  accepted: "bg-sky-500 text-white",
+  in_progress: "bg-indigo-500 text-white",
   completed: "bg-green-500 text-white",
   cancelled: "bg-red-500 text-white",
 };
@@ -121,13 +123,15 @@ export default function RequestCard({
           <span className="text-sm text-gray-500">Cost not quoted yet</span>
         )}
         <div className="flex flex-wrap items-center gap-2">
-          {request.status === "pending" && (
+          {(request.status === "pending" ||
+            request.status === "accepted" ||
+            request.status === "in_progress") && (
             <Link
               href={`/customer/requests/${request.id}/tracking`}
               className="inline-flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-medium transition-colors"
             >
               <MapPinned className="w-4 h-4" />
-              View Tracking
+              View Route
             </Link>
           )}
           {request.status === "completed" && request.rating == null && (

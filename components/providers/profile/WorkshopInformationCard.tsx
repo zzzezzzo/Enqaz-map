@@ -1,8 +1,9 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { MapPin, UserRound } from "lucide-react";
+import { Clock, MapPin, UserRound } from "lucide-react";
 import type { ServiceOption, WorkshopProfileForm } from "@/app/providers/profile/types";
+import { AmPmTimePicker } from "@/components/providers/profile/AmPmTimePicker";
 
 export type WorkshopInformationCardProps = {
   form: WorkshopProfileForm;
@@ -54,7 +55,25 @@ export default function WorkshopInformationCard({
           onChange={(v) => setForm({ ...form, longitude: v })}
           inputMode="decimal"
         />
+
+        <AmPmTimePicker
+          label="Opens at"
+          icon={<Clock className="h-4 w-4 text-slate-400" />}
+          valueMinutes={form.opening_time}
+          onChangeMinutes={(m) => setForm({ ...form, opening_time: m })}
+        />
+
+        <AmPmTimePicker
+          label="Closes at"
+          icon={<Clock className="h-4 w-4 text-slate-400" />}
+          valueMinutes={form.closeing_time}
+          onChangeMinutes={(m) => setForm({ ...form, closeing_time: m })}
+        />
       </div>
+
+      <p className="mt-2 text-xs text-slate-500">
+        Times use 12-hour clock (AM/PM) and are saved with your workshop profile.
+      </p>
 
       <div className="mt-3">
         <button
@@ -121,6 +140,8 @@ type LabeledInputProps = {
   onChange: (value: string) => void;
   type?: string;
   inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"];
+  min?: number;
+  max?: number;
 };
 
 function LabeledInput({
@@ -130,6 +151,8 @@ function LabeledInput({
   onChange,
   type = "text",
   inputMode,
+  min,
+  max,
 }: LabeledInputProps) {
   return (
     <div>
@@ -140,6 +163,8 @@ function LabeledInput({
           type={type}
           inputMode={inputMode}
           value={value}
+          min={min}
+          max={max}
           onChange={(e) => onChange(e.target.value)}
           className="w-full bg-transparent text-sm text-slate-800 outline-none"
         />

@@ -3,13 +3,15 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Building2, Eye, EyeOff, Mail, Lock, User, MapPin } from 'lucide-react';
+import { Building2, Eye, EyeOff, Mail, Lock, User, MapPin, Clock } from 'lucide-react';
 import api, { authService, readAuthApiErrorMessage } from '@/services/auth';
-import { PROVIDER_ROLE_ID } from '@/lib/providerRole';
-import { putProviderWorkshopProfile } from '@/lib/putProviderProfile';
 import { fetchServicesCatalog } from '@/lib/servicesCatalog';
 import type { ServiceOption } from '@/app/providers/profile/types';
 import { resolvePostRegisterDestination } from '@/lib/postRegisterRedirect';
+import { AmPmTimePicker } from '@/components/providers/profile/AmPmTimePicker';
+import { buildProviderRegisterData } from '@/lib/buildProviderRegisterData';
+import { syncProviderWorkshopAfterRegister } from '@/lib/putProviderProfile';
+import { DEFAULT_CLOSING_MINUTES, DEFAULT_OPENING_MINUTES } from '@/lib/workshopHours';
 
 type AccountType = 'customer' | 'provider';
 
@@ -36,6 +38,8 @@ export default function RegisterForm() {
   const [latitude, setLatitude] = useState('');
   const [longitude, setLongitude] = useState('');
   const [selectedServiceIds, setSelectedServiceIds] = useState<number[]>([]);
+  const [openingMinutes, setOpeningMinutes] = useState(DEFAULT_OPENING_MINUTES);
+  const [closingMinutes, setClosingMinutes] = useState(DEFAULT_CLOSING_MINUTES);
   const [servicesCatalog, setServicesCatalog] = useState<ServiceOption[]>([]);
   const [servicesLoading, setServicesLoading] = useState(false);
   const [servicesError, setServicesError] = useState<string | null>(null);
@@ -153,30 +157,30 @@ export default function RegisterForm() {
           password_confirmation: formData.confirmPassword,
         });
       } else {
-        await authService.register({
-          name: formData.name,
-          email: formData.email,
-          password: formData.password,
-          password_confirmation: formData.confirmPassword,
-          role: 'provider',
-          role_id: PROVIDER_ROLE_ID,
-          workShopName: workShopName.trim(),
-          description: workshopDescription.trim(),
-          latitude: latitude.trim(),
-          longitude: longitude.trim(),
-          services: selectedServiceIds,
-        });
-        await putProviderWorkshopProfile(
-          api,
-          {
+        await authService.register(
+          buildProviderRegisterData({
+            userName: formData.name,
+            email: formData.email,
+            password: formData.password,
+            password_confirmation: formData.confirmPassword,
             workShopName: workShopName.trim(),
             description: workshopDescription.trim(),
             latitude: latitude.trim(),
             longitude: longitude.trim(),
             services: selectedServiceIds,
-          },
-          { includeRoleId: true }
+            openingMinutes,
+            closingMinutes,
+          })
         );
+        await syncProviderWorkshopAfterRegister(api, {
+          workShopName: workShopName.trim(),
+          description: workshopDescription.trim(),
+          latitude: latitude.trim(),
+          longitude: longitude.trim(),
+          services: selectedServiceIds,
+          opening_time: openingMinutes,
+          closeing_time: closingMinutes,
+        });
       }
 
       const next = await resolvePostRegisterDestination();
@@ -233,14 +237,14 @@ export default function RegisterForm() {
   };
 
   return (
-    <div className="max-w-md w-full space-y-8">
+    <div className="max-w-md w-full space-y-8 mx-auto">
       <div>
-        <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+        <h2 className="mt-2 text-center text-3xl font-extrabold text-[#0f2744]">
           Create your account
         </h2>
         <p className="mt-2 text-center text-sm text-gray-600">
           Or{' '}
-          <Link href="/auth/login" className="font-medium text-blue-600 hover:text-blue-500">
+          <Link href="/auth/login" className="font-semibold text-orange-500 hover:text-orange-600">
             sign in to your existing account
           </Link>
         </p>
@@ -253,26 +257,26 @@ export default function RegisterForm() {
           </div>
         )}
 
-        <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 shadow-sm">
           <p className="text-sm font-medium text-gray-900">I am registering as</p>
           <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-gray-200 p-3 hover:bg-gray-50">
+              <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-200 bg-white p-3 hover:bg-orange-50">
               <input
                 type="radio"
                 name="accountType"
                 checked={accountType === 'customer'}
                 onChange={() => setAccountType('customer')}
-                className="h-4 w-4 text-blue-600"
+                  className="h-4 w-4 text-orange-500"
               />
               <span className="text-sm text-gray-800">Customer</span>
             </label>
-            <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-gray-200 p-3 hover:bg-gray-50">
+              <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-200 bg-white p-3 hover:bg-orange-50">
               <input
                 type="radio"
                 name="accountType"
                 checked={accountType === 'provider'}
                 onChange={() => setAccountType('provider')}
-                className="h-4 w-4 text-blue-600"
+                  className="h-4 w-4 text-orange-500"
               />
               <span className="flex items-center gap-2 text-sm text-gray-800">
                 <Building2 className="h-4 w-4 text-gray-500" aria-hidden />
@@ -302,7 +306,7 @@ export default function RegisterForm() {
                 autoComplete="name"
                 value={formData.name}
                 onChange={handleInputChange}
-                className={`block w-full pl-10 text-gray-900 pr-3 py-2 border ${errors.name ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm`}
+                className={`block w-full rounded-xl border py-2.5 pl-10 pr-3 text-gray-900 shadow-sm placeholder-gray-400 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100 sm:text-sm ${errors.name ? 'border-red-500' : 'border-gray-300'}`}
                 placeholder="Enter your full name"
               />
             </div>
@@ -324,7 +328,7 @@ export default function RegisterForm() {
                 autoComplete="email"
                 value={formData.email}
                 onChange={handleInputChange}
-                className={`block w-full pl-10 text-gray-900 pr-3 py-2 border ${errors.email ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm`}
+                className={`block w-full rounded-xl border py-2.5 pl-10 pr-3 text-gray-900 shadow-sm placeholder-gray-400 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100 sm:text-sm ${errors.email ? 'border-red-500' : 'border-gray-300'}`}
                 placeholder="Enter your email"
               />
             </div>
@@ -346,7 +350,7 @@ export default function RegisterForm() {
                 autoComplete="new-password"
                 value={formData.password}
                 onChange={handleInputChange}
-                className={`block w-full pl-10 text-gray-900 pr-10 py-2 border ${errors.password ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm`}
+                className={`block w-full rounded-xl border py-2.5 pl-10 pr-10 text-gray-900 shadow-sm placeholder-gray-400 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100 sm:text-sm ${errors.password ? 'border-red-500' : 'border-gray-300'}`}
                 placeholder="Create a password"
               />
               <button
@@ -379,7 +383,7 @@ export default function RegisterForm() {
                 autoComplete="new-password"
                 value={formData.confirmPassword}
                 onChange={handleInputChange}
-                className={`block w-full pl-10 text-gray-900 pr-10 py-2 border ${errors.confirmPassword ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm`}
+                className={`block w-full rounded-xl border py-2.5 pl-10 pr-10 text-gray-900 shadow-sm placeholder-gray-400 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100 sm:text-sm ${errors.confirmPassword ? 'border-red-500' : 'border-gray-300'}`}
                 placeholder="Confirm your password"
               />
               <button
@@ -401,7 +405,7 @@ export default function RegisterForm() {
         </div>
 
         {accountType === 'provider' && (
-          <div className="space-y-4 rounded-lg border border-amber-100 bg-amber-50/50 p-4">
+          <div className="space-y-4 rounded-xl border border-amber-200 bg-amber-50/60 p-4">
             <p className="text-sm font-semibold text-gray-900">Workshop details</p>
 
             <div>
@@ -413,7 +417,7 @@ export default function RegisterForm() {
                 type="text"
                 value={workShopName}
                 onChange={(e) => setWorkShopName(e.target.value)}
-                className={`mt-1 block w-full rounded-md border px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 ${errors.workShopName ? 'border-red-500' : 'border-gray-300'}`}
+                className={`mt-1 block w-full rounded-xl border px-3 py-2.5 text-sm text-gray-900 shadow-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100 ${errors.workShopName ? 'border-red-500' : 'border-gray-300'}`}
                 placeholder="Your workshop name"
               />
               {errors.workShopName && (
@@ -430,7 +434,7 @@ export default function RegisterForm() {
                 value={workshopDescription}
                 onChange={(e) => setWorkshopDescription(e.target.value)}
                 rows={3}
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+                className="mt-1 block w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm text-gray-900 shadow-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100"
                 placeholder="What services do you offer?"
               />
             </div>
@@ -438,7 +442,7 @@ export default function RegisterForm() {
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <label className="block text-sm font-medium text-gray-700">Latitude</label>
-                <div className="mt-1 flex items-center gap-2 rounded-md border border-gray-300 bg-white px-3 py-2 shadow-sm">
+                <div className="mt-1 flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-3 py-2.5 shadow-sm">
                   <MapPin className="h-4 w-4 text-gray-400" aria-hidden />
                   <input
                     type="text"
@@ -452,7 +456,7 @@ export default function RegisterForm() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Longitude</label>
-                <div className="mt-1 flex items-center gap-2 rounded-md border border-gray-300 bg-white px-3 py-2 shadow-sm">
+                <div className="mt-1 flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-3 py-2.5 shadow-sm">
                   <MapPin className="h-4 w-4 text-gray-400" aria-hidden />
                   <input
                     type="text"
@@ -474,19 +478,39 @@ export default function RegisterForm() {
                 type="button"
                 onClick={useLiveLocation}
                 disabled={locationLoading}
-                className="rounded-md border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-700 shadow-sm hover:bg-gray-50 disabled:opacity-60"
+                className="rounded-xl border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-700 shadow-sm hover:bg-gray-50 disabled:opacity-60"
               >
                 {locationLoading ? 'Getting location…' : 'Use live location'}
               </button>
               {locationError && <p className="mt-2 text-xs text-red-600">{locationError}</p>}
             </div>
 
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <AmPmTimePicker
+                label="Opens at"
+                icon={<Clock className="h-4 w-4 text-gray-400" aria-hidden />}
+                valueMinutes={openingMinutes}
+                onChangeMinutes={setOpeningMinutes}
+                tone="gray"
+              />
+              <AmPmTimePicker
+                label="Closes at"
+                icon={<Clock className="h-4 w-4 text-gray-400" aria-hidden />}
+                valueMinutes={closingMinutes}
+                onChangeMinutes={setClosingMinutes}
+                tone="gray"
+              />
+            </div>
+            <p className="text-xs text-gray-500">
+              Shown in AM/PM; sent to the server as 24-hour times (e.g. 5:00 PM → 17:00).
+            </p>
+
             <div>
               <p className="text-sm font-medium text-gray-700">Services you offer</p>
               <p className="text-xs text-gray-500">
                 Loaded from the API — optional; you can change these later in profile.
               </p>
-              <div className="mt-2 rounded-md border border-gray-200 bg-white p-3">
+              <div className="mt-2 rounded-xl border border-gray-200 bg-white p-3">
                 {servicesLoading ? (
                   <p className="text-sm text-gray-500">Loading services…</p>
                 ) : servicesError ? (
@@ -513,7 +537,7 @@ export default function RegisterForm() {
                           type="checkbox"
                           checked={selectedServiceIds.includes(s.id)}
                           onChange={() => toggleService(s.id)}
-                          className="h-4 w-4 rounded border-gray-300 text-blue-600"
+                            className="h-4 w-4 rounded border-gray-300 text-orange-500"
                         />
                         {s.name}
                       </label>
@@ -531,15 +555,15 @@ export default function RegisterForm() {
             name="agree-terms"
             type="checkbox"
             required
-            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+            className="h-4 w-4 rounded border-gray-300 text-orange-500 focus:ring-orange-500"
           />
           <label htmlFor="agree-terms" className="ml-2 block text-sm text-gray-900">
             I agree to the{' '}
-            <Link href="/terms" className="text-blue-600 hover:text-blue-500">
+            <Link href="/terms" className="text-orange-500 hover:text-orange-600">
               Terms of Service
             </Link>{' '}
             and{' '}
-            <Link href="/privacy" className="text-blue-600 hover:text-blue-500">
+            <Link href="/privacy" className="text-orange-500 hover:text-orange-600">
               Privacy Policy
             </Link>
           </label>
@@ -549,7 +573,7 @@ export default function RegisterForm() {
           <button
             type="submit"
             disabled={isLoading}
-            className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="group relative flex w-full justify-center rounded-xl border border-transparent bg-[#f59e0b] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#d48806] focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isLoading ? 'Creating account…' : 'Create account'}
           </button>

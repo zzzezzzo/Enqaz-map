@@ -32,7 +32,7 @@ const navPrimary: Array<{ href: string; icon: typeof LayoutDashboard; label: str
   // { href: "/admin/requests", icon: Activity, label: "Requests Monitoring" },
   { href: "/admin/services", icon: Layers, label: "Services & Categories" },
   // { href: "/admin/reports", icon: BarChart3, label: "Reports & Analytics" },
-  { href: "/admin/accounts", icon: UserCog, label: "Admin Accounts" },
+  // { href: "/admin/accounts", icon: UserCog, label: "Admin Accounts" },
 ];
 
 export default function AdminShell({ children }: { children: React.ReactNode }) {

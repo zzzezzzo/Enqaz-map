@@ -1,9 +1,14 @@
 "use client";
 
-import { Star } from "lucide-react";
+import { Clock, Star } from "lucide-react";
 import { useWorkshopProfileSettings } from "./useWorkshopProfileSettings";
 import { uniqueServiceIdsFromProfile } from "./useProviderProfile";
 import WorkshopInformationCard from "@/components/providers/profile/WorkshopInformationCard";
+import { formatMinutesAs12h } from "@/lib/workshopHours";
+
+function formatMinuteRange(opening: number, closing: number): string {
+  return `${formatMinutesAs12h(opening)} – ${formatMinutesAs12h(closing)}`;
+}
 
 export default function ProviderProfilePage() {
   const {
@@ -88,12 +93,20 @@ export default function ProviderProfilePage() {
       )}
 
       {profile && (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Availability</p>
             <p className="mt-2 text-sm font-semibold text-slate-900">
               {isAvailable ? "Available for requests" : "Unavailable"}
             </p>
+          </div>
+          <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Workshop hours</p>
+            <p className="mt-2 flex items-center gap-2 text-sm font-semibold text-slate-900">
+              <Clock className="h-4 w-4 text-slate-500" aria-hidden />
+              {formatMinuteRange(form.opening_time, form.closeing_time)}
+            </p>
+            <p className="mt-1 text-xs text-slate-500">12-hour times (AM/PM).</p>
           </div>
           <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Average rating</p>

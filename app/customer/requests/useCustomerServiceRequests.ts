@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import api from "@/services/auth";
 import type { RequestStatus, ServiceRequest } from "@/lib/requests";
 
@@ -18,6 +18,10 @@ export type ApiCustomerServiceRequest = {
   service_id?: number;
   latitude?: string | number;
   longitude?: string | number;
+  customer_latitude?: string | number;
+  customer_longitude?: string | number;
+  workshop_latitude?: string | number;
+  workshop_longitude?: string | number;
   description?: string;
   status_id?: number;
   created_at?: string;
@@ -27,6 +31,22 @@ export type ApiCustomerServiceRequest = {
     name?: string;
     email?: string;
     phone?: string;
+    latitude?: string | number;
+    longitude?: string | number;
+    lat?: string | number;
+    lng?: string | number;
+    workshop_location?: {
+      latitude?: string | number;
+      longitude?: string | number;
+      lat?: string | number;
+      lng?: string | number;
+    };
+    workShop_location?: {
+      latitude?: string | number;
+      longitude?: string | number;
+      lat?: string | number;
+      lng?: string | number;
+    };
   };
   vehicle?: {
     id?: number;
@@ -43,6 +63,30 @@ export type ApiCustomerServiceRequest = {
     id?: number;
     name?: string;
   };
+  workshop_location?: {
+    latitude?: string | number;
+    longitude?: string | number;
+    lat?: string | number;
+    lng?: string | number;
+  };
+  workShop_location?: {
+    latitude?: string | number;
+    longitude?: string | number;
+    lat?: string | number;
+    lng?: string | number;
+  };
+  workShopLocation?: {
+    latitude?: string | number;
+    longitude?: string | number;
+    lat?: string | number;
+    lng?: string | number;
+  };
+  workshop?: {
+    latitude?: string | number;
+    longitude?: string | number;
+    lat?: string | number;
+    lng?: string | number;
+  };
 };
 
 function mapApiStatus(name: string | undefined): {
@@ -51,6 +95,12 @@ function mapApiStatus(name: string | undefined): {
 } {
   const raw = (name ?? "pending").trim();
   const lower = raw.toLowerCase();
+  if (lower === "accepted") {
+    return { status: "accepted", statusLabel: raw || "Accepted" };
+  }
+  if (lower === "in_progress" || lower === "in progress") {
+    return { status: "in_progress", statusLabel: raw || "In Progress" };
+  }
   if (lower === "completed") {
     return { status: "completed", statusLabel: raw || "Completed" };
   }
@@ -61,6 +111,11 @@ function mapApiStatus(name: string | undefined): {
     return { status: "pending", statusLabel: raw || "Pending" };
   }
   return { status: "pending", statusLabel: raw || "Pending" };
+}
+
+function parseCoord(value: unknown): number | undefined {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : undefined;
 }
 
 function formatCoords(lat: unknown, lng: unknown): string {
@@ -95,6 +150,30 @@ export function mapApiRowToServiceRequest(
     (x): x is string => typeof x === "string" && x.trim().length > 0
   );
 
+  const workshopLocation =
+    r.provider?.workshop_location ??
+    r.provider?.workShop_location ??
+    r.workshop_location ??
+    r.workShop_location ??
+    r.workShopLocation ??
+    r.workshop;
+  const customerLatitude =
+    parseCoord(r.customer_latitude) ?? parseCoord(r.latitude);
+  const customerLongitude =
+    parseCoord(r.customer_longitude) ?? parseCoord(r.longitude);
+  const workshopLatitude =
+    parseCoord(r.workshop_latitude) ??
+    parseCoord(r.provider?.latitude) ??
+    parseCoord(r.provider?.lat) ??
+    parseCoord(workshopLocation?.latitude) ??
+    parseCoord(workshopLocation?.lat);
+  const workshopLongitude =
+    parseCoord(r.workshop_longitude) ??
+    parseCoord(r.provider?.longitude) ??
+    parseCoord(r.provider?.lng) ??
+    parseCoord(workshopLocation?.longitude) ??
+    parseCoord(workshopLocation?.lng);
+
   return {
     id: String(id),
     serviceName: String(r.service?.name ?? "Service"),
@@ -109,6 +188,10 @@ export function mapApiRowToServiceRequest(
     providerPhone: r.provider?.phone ? String(r.provider.phone) : undefined,
     vehicleSummary:
       vehicleParts.length > 0 ? vehicleParts.join(" · ") : undefined,
+    customerLatitude,
+    customerLongitude,
+    workshopLatitude,
+    workshopLongitude,
   };
 }
 
@@ -126,36 +209,35 @@ export function useCustomerServiceRequests() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    const load = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const response = await api.get("/customer/service-requests");
-        const list = extractList(response.data);
-        const mapped = list
-          .map(mapApiRowToServiceRequest)
-          .filter((x): x is ServiceRequest => x != null);
-        if (!cancelled) {
-          setRequests(mapped);
-        }
-      } catch {
-        if (!cancelled) {
-          setRequests([]);
-          setError("Unable to load your request history.");
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
+  const load = useCallback(async (cancelledRef?: { value: boolean }) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await api.get("/customer/service-requests");
+      const list = extractList(response.data);
+      const mapped = list
+        .map(mapApiRowToServiceRequest)
+        .filter((x): x is ServiceRequest => x != null);
+      if (!cancelledRef?.value) {
+        setRequests(mapped);
       }
-    };
-
-    void load();
-    return () => {
-      cancelled = true;
-    };
+    } catch {
+      if (!cancelledRef?.value) {
+        setRequests([]);
+        setError("Unable to load your request history.");
+      }
+    } finally {
+      if (!cancelledRef?.value) setLoading(false);
+    }
   }, []);
 
-  return { requests, loading, error };
+  useEffect(() => {
+    const cancelledRef = { value: false };
+    void load(cancelledRef);
+    return () => {
+      cancelledRef.value = true;
+    };
+  }, [load]);
+
+  return { requests, loading, error, refetch: load };
 }

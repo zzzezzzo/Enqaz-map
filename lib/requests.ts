@@ -1,4 +1,9 @@
-export type RequestStatus = "pending" | "completed" | "cancelled";
+export type RequestStatus =
+  | "pending"
+  | "accepted"
+  | "in_progress"
+  | "completed"
+  | "cancelled";
 
 export interface ServiceRequest {
   id: string;
@@ -18,6 +23,10 @@ export interface ServiceRequest {
   providerPhone?: string;
   /** e.g. "2022 · BMW · ABC 123" */
   vehicleSummary?: string;
+  customerLatitude?: number;
+  customerLongitude?: number;
+  workshopLatitude?: number;
+  workshopLongitude?: number;
 }
 
 export const MOCK_REQUESTS: ServiceRequest[] = [

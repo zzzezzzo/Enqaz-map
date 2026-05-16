@@ -5,12 +5,20 @@ import api, { readAuthApiErrorMessage } from "@/services/auth";
 import { putProviderWorkshopProfile } from "@/lib/putProviderProfile";
 import type { ProviderProfileSavePayload, WorkshopProfileForm } from "./types";
 import { useProviderProfile, uniqueServiceIdsFromProfile } from "./useProviderProfile";
+import {
+  apiTimeToMinutes,
+  clampMinutes,
+  DEFAULT_CLOSING_MINUTES,
+  DEFAULT_OPENING_MINUTES,
+} from "@/lib/workshopHours";
 
 const EMPTY_FORM: WorkshopProfileForm = {
   workShopName: "",
   description: "",
   latitude: "",
   longitude: "",
+  opening_time: DEFAULT_OPENING_MINUTES,
+  closeing_time: DEFAULT_CLOSING_MINUTES,
   services: [],
 };
 
@@ -33,11 +41,15 @@ export function useWorkshopProfileSettings() {
 
   useEffect(() => {
     if (!profile) return;
+    const closingRaw =
+      profile.closeing_time ?? profile.closing_time ?? EMPTY_FORM.closeing_time;
     setForm({
       workShopName: profile.workShopName ?? "",
       description: profile.description ?? "",
       latitude: String(profile.latitude ?? ""),
       longitude: String(profile.longitude ?? ""),
+      opening_time: apiTimeToMinutes(profile.opening_time, EMPTY_FORM.opening_time),
+      closeing_time: apiTimeToMinutes(closingRaw, EMPTY_FORM.closeing_time),
       services: uniqueServiceIdsFromProfile(profile.services),
     });
   }, [profile]);
@@ -48,6 +60,8 @@ export function useWorkshopProfileSettings() {
       description: form.description ?? "",
       latitude: form.latitude.trim(),
       longitude: form.longitude.trim(),
+      opening_time: clampMinutes(form.opening_time, EMPTY_FORM.opening_time),
+      closeing_time: clampMinutes(form.closeing_time, EMPTY_FORM.closeing_time),
       services: form.services,
     };
 

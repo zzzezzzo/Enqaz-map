@@ -1,12 +1,39 @@
 "use client";
 
+import { useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import CustomerNav from "@/components/layout/CustomerNav";
 import CustomerFooter from "@/components/layout/CustomerFooter";
 import RequestCard from "@/components/customer/RequestCard";
 import { useCustomerServiceRequests } from "./useCustomerServiceRequests";
 
 export default function RequestHistoryPage() {
-  const { requests, loading, error } = useCustomerServiceRequests();
+  const router = useRouter();
+  const redirectedRequestIdRef = useRef<string | null>(null);
+  const { requests, loading, error, refetch } = useCustomerServiceRequests();
+
+  useEffect(() => {
+    const hasActiveRequest = requests.some(
+      (request) => request.status === "accepted" || request.status === "in_progress"
+    );
+    if (!hasActiveRequest) return;
+
+    const activeRequest = requests.find(
+      (request) => request.status === "accepted" || request.status === "in_progress"
+    );
+    if (!activeRequest) return;
+    if (redirectedRequestIdRef.current === activeRequest.id) return;
+
+    redirectedRequestIdRef.current = activeRequest.id;
+    router.push(`/customer/requests/${activeRequest.id}/tracking`);
+  }, [requests, router]);
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      void refetch();
+    }, 7000);
+    return () => window.clearInterval(intervalId);
+  }, [refetch]);
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">

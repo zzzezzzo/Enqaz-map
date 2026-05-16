@@ -18,8 +18,28 @@ function LoginPageContent() {
     return (
       <>
         <CustomerNav />
-        <div className="flex min-h-screen items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-          <RegisterForm />
+        <div className="min-h-screen bg-slate-50 px-4 py-10">
+          <div className="mx-auto w-full max-w-6xl rounded-3xl border border-slate-200 bg-white/90 shadow-sm">
+            <div className="grid overflow-hidden rounded-3xl lg:grid-cols-[1.05fr_1fr]">
+              <div className="hidden bg-[#0f2744] p-10 text-white lg:flex lg:flex-col lg:justify-between">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.35em] text-orange-300">ENQAZ</p>
+                  <h1 className="mt-3 text-3xl font-bold leading-tight">
+                    Join the Roadside Assistance Network
+                  </h1>
+                  <p className="mt-4 text-sm text-slate-200">
+                    Create your account to request help quickly or manage your workshop services.
+                  </p>
+                </div>
+                <p className="text-xs text-slate-300">
+                  Fast response. Trusted providers. Real-time request tracking.
+                </p>
+              </div>
+              <div className="p-6 sm:p-8 lg:p-10">
+                <RegisterForm />
+              </div>
+            </div>
+          </div>
         </div>
         <CustomerFooter />
       </>
@@ -88,17 +108,32 @@ function LoginForm() {
   return (
     <>
       <CustomerNav />
-      <div className="flex min-h-screen items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-md w-full space-y-8">
+      <div className="min-h-screen bg-slate-50 px-4 py-10">
+        <div className="mx-auto w-full max-w-6xl rounded-3xl border border-slate-200 bg-white/90 shadow-sm">
+          <div className="grid overflow-hidden rounded-3xl lg:grid-cols-[1.05fr_1fr]">
+            <div className="hidden bg-[#0f2744] p-10 text-white lg:flex lg:flex-col lg:justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-[0.35em] text-orange-300">Welcome Back</p>
+                <h1 className="mt-3 text-3xl font-bold leading-tight">Sign in to continue with ENQAZ</h1>
+                <p className="mt-4 text-sm text-slate-200">
+                  Access your dashboard, track requests, and get roadside support instantly.
+                </p>
+              </div>
+              <p className="text-xs text-slate-300">
+                Need help now? ENQAZ is ready 24/7.
+              </p>
+            </div>
+            <div className="p-6 sm:p-8 lg:p-10">
+        <div className="max-w-md w-full space-y-8 mx-auto">
           <div>
-            <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+            <h2 className="mt-2 text-center text-3xl font-extrabold text-[#0f2744]">
               Sign in to your account
             </h2>
             <p className="mt-2 text-center text-sm text-gray-600">
               Or{' '}
               <Link
                 href="/auth/login?register=1"
-                className="font-medium text-blue-600 hover:text-blue-500"
+                className="font-semibold text-orange-500 hover:text-orange-600"
               >
                 create a new account
               </Link>
@@ -128,7 +163,7 @@ function LoginForm() {
                     autoComplete="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className={`block w-full rounded-md border py-2 pl-10 pr-3 text-gray-900 shadow-sm placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm ${errors.email ? 'border-red-500' : 'border-gray-300'}`}
+                    className={`block w-full rounded-xl border py-2.5 pl-10 pr-3 text-gray-900 shadow-sm placeholder-gray-400 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100 sm:text-sm ${errors.email ? 'border-red-500' : 'border-gray-300'}`}
                     placeholder="Enter your email"
                   />
                 </div>
@@ -150,7 +185,7 @@ function LoginForm() {
                     autoComplete="current-password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className={`block w-full rounded-md border py-2 pl-10 pr-10 text-gray-900 shadow-sm placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm ${errors.password ? 'border-red-500' : 'border-gray-300'}`}
+                    className={`block w-full rounded-xl border py-2.5 pl-10 pr-10 text-gray-900 shadow-sm placeholder-gray-400 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100 sm:text-sm ${errors.password ? 'border-red-500' : 'border-gray-300'}`}
                     placeholder="Enter your password"
                   />
                   <button
@@ -175,7 +210,7 @@ function LoginForm() {
                   id="remember-me"
                   name="remember-me"
                   type="checkbox"
-                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  className="h-4 w-4 rounded border-gray-300 text-orange-500 focus:ring-orange-500"
                 />
                 <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">
                   Remember me
@@ -183,7 +218,7 @@ function LoginForm() {
               </div>
 
               <div className="text-sm">
-                <Link href="/auth/forgot-password" className="font-medium text-blue-600 hover:text-blue-500">
+                <Link href="/auth/forgot-password" className="font-medium text-orange-500 hover:text-orange-600">
                   Forgot your password?
                 </Link>
               </div>
@@ -193,12 +228,15 @@ function LoginForm() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="group relative flex w-full justify-center rounded-md border border-transparent bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                className="group relative flex w-full justify-center rounded-xl border border-transparent bg-[#f59e0b] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#d48806] focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isLoading ? 'Signing in...' : 'Sign in'}
               </button>
             </div>
           </form>
+        </div>
+      </div>
+          </div>
         </div>
       </div>
       <CustomerFooter />

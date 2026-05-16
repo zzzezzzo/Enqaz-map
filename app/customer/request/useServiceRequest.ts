@@ -359,6 +359,7 @@ export function useServiceRequest({
     if (!serviceId) {
       setSubmitError("Service is not ready yet. Please try again.");
       return;
+      
     }
 
     if (!problem.trim()) {
