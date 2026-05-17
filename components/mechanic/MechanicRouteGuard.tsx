@@ -26,13 +26,8 @@ export default function MechanicRouteGuard({
         router.replace("/mechanic/login");
         return;
       }
-      const profile = await mechanicAuthService.getCurrentMechanic();
+      await mechanicAuthService.getCurrentMechanic();
       if (cancelled) return;
-      if (!profile) {
-        await mechanicAuthService.logout();
-        router.replace("/mechanic/login");
-        return;
-      }
       setReady(true);
     })();
 

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { Eye, EyeOff, User, Lock, Wrench } from "lucide-react";
 import {
   mechanicAuthService,
@@ -11,7 +11,8 @@ import {
 } from "@/services/mechanicAuth";
 
 export default function MechanicLoginPage() {
-  const router = useRouter();
+  const searchParams = useSearchParams();
+  const sessionExpired = searchParams.get("reason") === "session";
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -28,8 +29,7 @@ export default function MechanicLoginPage() {
     setLoading(true);
     try {
       await mechanicAuthService.login(username.trim(), password);
-      router.push("/mechanic/jobs");
-      router.refresh();
+      window.location.assign("/mechanic/jobs");
     } catch (err) {
       setError(readAuthApiErrorMessage(err));
     } finally {
@@ -49,6 +49,11 @@ export default function MechanicLoginPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {sessionExpired ? (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              Your session expired or the server rejected the token. Please sign in again.
+            </div>
+          ) : null}
           {error ? (
             <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
               {error}

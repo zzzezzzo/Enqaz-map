@@ -7,14 +7,18 @@ import { fetchMechanicJobs } from "@/lib/mechanics/mechanicJobsApi";
 import type { MechanicJob } from "@/lib/mechanics/types";
 import { mechanicAuthService, readAuthApiErrorMessage } from "@/services/mechanicAuth";
 
-function dispatchLabel(status: string): string {
-  const s = status.toLowerCase();
+function dispatchLabel(job: MechanicJob): string {
+  const s = job.dispatch_status.toLowerCase();
   if (s === "en_route") return "En route";
   if (s === "arrived") return "Arrived";
   if (s === "in_service") return "In service";
   if (s === "completed") return "Completed";
-  if (s === "assigned") return "Assigned";
-  return status;
+  if (s === "assigned") {
+    const raw = job.request_status?.toLowerCase();
+    if (raw === "accepted") return "Accepted";
+    return "Assigned";
+  }
+  return job.request_status ?? job.dispatch_status;
 }
 
 function badgeClass(status: string): string {
@@ -36,7 +40,9 @@ export default function MechanicJobsPage() {
     setLoading(true);
     setError(null);
     try {
-      const list = await fetchMechanicJobs();
+      const mechanic = await mechanicAuthService.getCurrentMechanic();
+      if (mechanic?.name) setMechanicName(mechanic.name);
+      const list = await fetchMechanicJobs(mechanic?.workshop_id);
       setJobs(list);
     } catch (err: unknown) {
       setError(readAuthApiErrorMessage(err));
@@ -47,9 +53,6 @@ export default function MechanicJobsPage() {
   }, []);
 
   useEffect(() => {
-    void mechanicAuthService.getCurrentMechanic().then((m) => {
-      if (m?.name) setMechanicName(m.name);
-    });
     void load();
   }, [load]);
 
@@ -100,7 +103,7 @@ export default function MechanicJobsPage() {
                   <span
                     className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${badgeClass(job.dispatch_status)}`}
                   >
-                    {dispatchLabel(job.dispatch_status)}
+                    {dispatchLabel(job)}
                   </span>
                   <ChevronRight className="h-4 w-4 text-slate-400" />
                 </div>

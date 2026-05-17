@@ -32,11 +32,14 @@ export type MechanicJob = {
   service_request_id: number;
   service_name: string;
   customer_name: string;
+  customer_phone?: string;
   vehicle_details: string;
   description: string;
   customer_latitude: number;
   customer_longitude: number;
   dispatch_status: MechanicDispatchStatus;
+  /** Raw request status from API e.g. `accepted`, `in_progress`. */
+  request_status?: string;
   assigned_at?: string;
 };
 

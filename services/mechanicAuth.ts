@@ -3,50 +3,79 @@ import { readAuthApiErrorMessage } from "@/services/auth";
 import type { MechanicSession } from "@/lib/mechanics/types";
 
 const MECHANIC_TOKEN_KEY = "mechanic_token";
+const MECHANIC_PROFILE_KEY = "mechanic_profile";
+
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return v != null && typeof v === "object";
+}
+
+function pickToken(obj: Record<string, unknown>): string | null {
+  const keys = [
+    "access_token",
+    "token",
+    "plain_text_token",
+    "plainTextToken",
+    "auth_token",
+    "api_token",
+  ];
+  for (const k of keys) {
+    const v = obj[k];
+    if (typeof v === "string" && v.trim()) return v.trim();
+  }
+  const auth = obj.authorisation ?? obj.authorization;
+  if (isRecord(auth) && typeof auth.token === "string" && auth.token.trim()) {
+    return auth.token.trim();
+  }
+  return null;
+}
 
 function extractAccessToken(body: unknown): string | null {
-  if (body == null || typeof body !== "object") return null;
-  const b = body as Record<string, unknown>;
-  const direct =
-    (typeof b.access_token === "string" && b.access_token) ||
-    (typeof b.token === "string" && b.token) ||
-    null;
+  if (!isRecord(body)) return null;
+  const direct = pickToken(body);
   if (direct) return direct;
-  const inner = b.data;
-  if (inner != null && typeof inner === "object") {
-    const d = inner as Record<string, unknown>;
-    return (
-      (typeof d.access_token === "string" && d.access_token) ||
-      (typeof d.token === "string" && d.token) ||
-      null
-    );
+  if (isRecord(body.data)) {
+    const nested = pickToken(body.data);
+    if (nested) return nested;
+    if (isRecord(body.data.data)) {
+      return pickToken(body.data.data);
+    }
   }
   return null;
 }
 
 function extractMechanic(body: unknown): MechanicSession | null {
-  if (body == null || typeof body !== "object") return null;
-  const b = body as Record<string, unknown>;
+  if (!isRecord(body)) return null;
   const raw =
-    (b.mechanic && typeof b.mechanic === "object" ? b.mechanic : null) ??
-    (b.data && typeof b.data === "object"
-      ? ((b.data as Record<string, unknown>).mechanic ??
-        (b.data as Record<string, unknown>))
-      : null);
-  if (!raw || typeof raw !== "object") return null;
-  const m = raw as Record<string, unknown>;
-  const id = Number(m.id);
-  if (!Number.isFinite(id)) return null;
+    (isRecord(body.mechanic) ? body.mechanic : null) ??
+    (isRecord(body.data)
+      ? (isRecord(body.data.mechanic)
+          ? body.data.mechanic
+          : isRecord(body.data.user)
+            ? body.data.user
+            : body.data)
+      : null) ??
+    (isRecord(body.user) ? body.user : null);
+
+  if (!isRecord(raw)) return null;
+  const id = Number(raw.id ?? raw.mechanic_id);
+  if (!Number.isFinite(id) || id <= 0) return null;
+
   return {
     id,
-    name: String(m.name ?? ""),
-    username: String(m.username ?? ""),
-    workshop_id: Number(m.workshop_id ?? m.provider_id ?? 0),
+    name: String(raw.name ?? ""),
+    username: String(raw.username ?? raw.user_name ?? ""),
+    workshop_id: Number(
+      raw.workshop_id ??
+        raw.work_shop_id ??
+        raw.provider_id ??
+        raw.workShop_id ??
+        0
+    ),
     workshop_name:
-      typeof m.workshop_name === "string"
-        ? m.workshop_name
-        : typeof m.workShopName === "string"
-          ? m.workShopName
+      typeof raw.workshop_name === "string"
+        ? raw.workshop_name
+        : typeof raw.workShopName === "string"
+          ? raw.workShopName
           : undefined,
   };
 }
@@ -55,61 +84,95 @@ const API_BASE_URL =
   (process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://127.0.0.1:8000").replace(/\/$/, "") +
   "/api";
 
+const LOGIN_PATHS = ["/mechanic/login", "/provider/mechanic/login"] as const;
+
 export const mechanicAuthService = {
   async login(username: string, password: string): Promise<MechanicSession> {
-    const response = await axios.post(
-      `${API_BASE_URL}/provider/mechanic/login`,
-      { username, user_name: username, password },
-      {
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
+    const payload = {
+      username,
+      user_name: username,
+      password,
+    };
+
+    let lastError: unknown;
+    for (const path of LOGIN_PATHS) {
+      try {
+        const response = await axios.post(`${API_BASE_URL}${path}`, payload, {
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+        });
+
+        const token = extractAccessToken(response.data);
+        if (!token) {
+          throw new Error(
+            "Login succeeded but the server did not return an access token. Check the mechanic login API response."
+          );
+        }
+
+        localStorage.setItem(MECHANIC_TOKEN_KEY, token);
+
+        const mechanic = extractMechanic(response.data);
+        if (mechanic) {
+          localStorage.setItem(MECHANIC_PROFILE_KEY, JSON.stringify(mechanic));
+          return mechanic;
+        }
+
+        const fallback: MechanicSession = {
+          id: 0,
+          name: username,
+          username,
+          workshop_id: 0,
+        };
+        localStorage.setItem(MECHANIC_PROFILE_KEY, JSON.stringify(fallback));
+        return fallback;
+      } catch (err) {
+        lastError = err;
+        if (axios.isAxiosError(err) && err.response?.status === 404) {
+          continue;
+        }
+        throw err;
       }
-    );
-    const token = extractAccessToken(response.data);
-    if (token) localStorage.setItem(MECHANIC_TOKEN_KEY, token);
-    const mechanic = extractMechanic(response.data);
-    if (mechanic) {
-      localStorage.setItem("mechanic_profile", JSON.stringify(mechanic));
-      return mechanic;
     }
-    const profile = await this.getCurrentMechanic();
-    if (!profile) throw new Error("Login succeeded but mechanic profile is missing.");
-    return profile;
+
+    throw lastError ?? new Error("Mechanic login endpoint not found.");
   },
 
   async logout(): Promise<void> {
     try {
-      await mechanicApi.post("/mechanic/logout");
+      await mechanicApi.post("/mechanic/logout", undefined, { skipAuthRedirect: true });
     } catch {
       // ignore
     } finally {
       localStorage.removeItem(MECHANIC_TOKEN_KEY);
-      localStorage.removeItem("mechanic_profile");
+      localStorage.removeItem(MECHANIC_PROFILE_KEY);
     }
   },
 
   async getCurrentMechanic(): Promise<MechanicSession | null> {
-    const cached = localStorage.getItem("mechanic_profile");
+    if (!this.getToken()) return null;
+
+    const cached = localStorage.getItem(MECHANIC_PROFILE_KEY);
     if (cached) {
       try {
         return JSON.parse(cached) as MechanicSession;
       } catch {
-        localStorage.removeItem("mechanic_profile");
+        localStorage.removeItem(MECHANIC_PROFILE_KEY);
       }
     }
-    if (!this.getToken()) return null;
+
     try {
       const res = await mechanicApi.get("/mechanic/me", { skipAuthRedirect: true });
       const mechanic = extractMechanic(res.data);
       if (mechanic) {
-        localStorage.setItem("mechanic_profile", JSON.stringify(mechanic));
+        localStorage.setItem(MECHANIC_PROFILE_KEY, JSON.stringify(mechanic));
         return mechanic;
       }
     } catch {
-      return null;
+      // Profile endpoint optional — token + jobs list are enough.
     }
+
     return null;
   },
 
@@ -120,6 +183,18 @@ export const mechanicAuthService = {
 
   isAuthenticated(): boolean {
     return !!this.getToken();
+  },
+
+  getWorkshopId(): number | null {
+    const cached = localStorage.getItem(MECHANIC_PROFILE_KEY);
+    if (!cached) return null;
+    try {
+      const profile = JSON.parse(cached) as MechanicSession;
+      const id = Number(profile.workshop_id);
+      return Number.isFinite(id) && id > 0 ? id : null;
+    } catch {
+      return null;
+    }
   },
 };
 
@@ -142,17 +217,24 @@ mechanicApi.interceptors.request.use((config) => {
 mechanicApi.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (axios.isAxiosError(error) && error.response?.status === 401) {
-      const cfg = error.config;
-      const skip = cfg?.skipAuthRedirect === true;
-      const path = typeof window !== "undefined" ? window.location.pathname : "";
-      const onLogin = path.startsWith("/mechanic/login");
-      if (!skip && !onLogin) {
-        localStorage.removeItem(MECHANIC_TOKEN_KEY);
-        localStorage.removeItem("mechanic_profile");
-        window.location.href = "/mechanic/login";
-      }
+    if (!axios.isAxiosError(error) || error.response?.status !== 401) {
+      return Promise.reject(error);
     }
+
+    const cfg = error.config as { skipAuthRedirect?: boolean } | undefined;
+    if (cfg?.skipAuthRedirect === true) {
+      return Promise.reject(error);
+    }
+
+    const path = typeof window !== "undefined" ? window.location.pathname : "";
+    if (path.startsWith("/mechanic/login")) {
+      return Promise.reject(error);
+    }
+
+    localStorage.removeItem(MECHANIC_TOKEN_KEY);
+    localStorage.removeItem(MECHANIC_PROFILE_KEY);
+    const params = new URLSearchParams({ reason: "session" });
+    window.location.href = `/mechanic/login?${params.toString()}`;
     return Promise.reject(error);
   }
 );

@@ -4,11 +4,12 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Car, MapPin, Navigation, User } from "lucide-react";
+import { ArrowLeft, Car, MessageSquare, Navigation, Phone } from "lucide-react";
 import {
   fetchMechanicJob,
   updateMechanicJobStatus,
 } from "@/lib/mechanics/mechanicJobsApi";
+import { mechanicAuthService } from "@/services/mechanicAuth";
 import type { MechanicDispatchStatus, MechanicJob } from "@/lib/mechanics/types";
 import { useMechanicLocationBroadcast } from "@/hooks/useMechanicLocationBroadcast";
 
@@ -48,7 +49,8 @@ export default function MechanicJobDetailPage() {
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchMechanicJob(jobId);
+      const mechanic = await mechanicAuthService.getCurrentMechanic();
+      const data = await fetchMechanicJob(jobId, mechanic?.workshop_id);
       if (!data) throw new Error("Job not found");
       setJob(data);
     } catch {
@@ -197,10 +199,19 @@ export default function MechanicJobDetailPage() {
             <Car className="h-3.5 w-3.5 text-slate-400" />
             {job.vehicle_details}
           </p>
-          <p className="flex items-center gap-2">
-            <User className="h-3.5 w-3.5 text-slate-400" />
+          <p className="flex items-start gap-2">
+            <MessageSquare className="h-3.5 w-3.5 shrink-0 text-slate-400 mt-0.5" />
             {job.description}
           </p>
+          {job.customer_phone ? (
+            <a
+              href={`tel:${job.customer_phone.replace(/\s/g, "")}`}
+              className="inline-flex items-center gap-2 font-medium text-orange-600 hover:underline"
+            >
+              <Phone className="h-3.5 w-3.5" />
+              {job.customer_phone}
+            </a>
+          ) : null}
         </div>
       </div>
 

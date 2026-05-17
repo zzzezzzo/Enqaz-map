@@ -1,4 +1,4 @@
-import { mechanicApi } from "@/services/mechanicAuth";
+import { mechanicApi, mechanicAuthService } from "@/services/mechanicAuth";
 import type {
   MechanicDispatchStatus,
   MechanicJob,
@@ -14,8 +14,33 @@ function toNumber(value: unknown): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-function normalizeDispatchStatus(value: unknown): MechanicDispatchStatus {
-  const s = String(value ?? "assigned").toLowerCase();
+function formatVehicleDetails(vehicle: unknown): string {
+  if (!isRecord(vehicle)) return "-";
+  const parts = [vehicle.brand, vehicle.model, vehicle.plate_number].filter(
+    (x): x is string => typeof x === "string" && x.trim().length > 0
+  );
+  return parts.length > 0 ? parts.join(" · ") : "-";
+}
+
+function normalizeDispatchStatus(
+  value: unknown,
+  dispatchStatus?: unknown
+): MechanicDispatchStatus {
+  const dispatch = String(dispatchStatus ?? "").toLowerCase().trim();
+  if (
+    dispatch === "unassigned" ||
+    dispatch === "assigned" ||
+    dispatch === "en_route" ||
+    dispatch === "arrived" ||
+    dispatch === "in_service" ||
+    dispatch === "completed"
+  ) {
+    return dispatch;
+  }
+  if (dispatch === "en route") return "en_route";
+  if (dispatch === "in service") return "in_service";
+
+  const s = String(value ?? "assigned").toLowerCase().trim();
   if (
     s === "unassigned" ||
     s === "assigned" ||
@@ -28,29 +53,72 @@ function normalizeDispatchStatus(value: unknown): MechanicDispatchStatus {
   }
   if (s === "en route") return "en_route";
   if (s === "in service") return "in_service";
+  if (s === "accepted" || s === "pending") return "assigned";
+  if (s === "in_progress") return "in_service";
+  if (s === "completed") return "completed";
   return "assigned";
 }
 
 function normalizeJob(row: unknown): MechanicJob | null {
   if (!isRecord(row)) return null;
-  const id = Number(row.id ?? row.service_request_id);
-  if (!Number.isFinite(id)) return null;
+
+  const requestId = Number(row.request_id ?? row.service_request_id ?? row.id);
+  if (!Number.isFinite(requestId) || requestId <= 0) return null;
+
+  const customer = isRecord(row.customer) ? row.customer : null;
+  const location = isRecord(row.location) ? row.location : null;
+  const service = isRecord(row.service) ? row.service : null;
+
+  const requestStatus =
+    typeof row.status === "string"
+      ? row.status
+      : typeof row.request_status === "string"
+        ? row.request_status
+        : undefined;
+
+  const customerPhone =
+    customer?.phone != null
+      ? String(customer.phone)
+      : row.customer_phone != null
+        ? String(row.customer_phone)
+        : undefined;
+
+  const description =
+    typeof row.problem_description === "string" && row.problem_description.trim()
+      ? row.problem_description.trim()
+      : typeof row.description === "string" && row.description.trim()
+        ? row.description.trim()
+        : typeof service?.description === "string" && service.description.trim()
+          ? service.description.trim()
+          : "-";
+
   return {
-    id,
-    service_request_id: Number(row.service_request_id ?? row.id ?? id),
+    id: requestId,
+    service_request_id: requestId,
     service_name: String(
-      row.service_name ??
-        (isRecord(row.service) ? row.service.name : undefined) ??
-        "Service"
+      service?.name ?? row.service_name ?? "Service"
     ),
-    customer_name: String(row.customer_name ?? "Customer"),
-    vehicle_details: String(row.vehicle_details ?? "-"),
-    description: String(row.description ?? "-"),
-    customer_latitude: toNumber(row.customer_latitude ?? row.latitude),
-    customer_longitude: toNumber(row.customer_longitude ?? row.longitude),
-    dispatch_status: normalizeDispatchStatus(row.dispatch_status),
+    customer_name: String(customer?.name ?? row.customer_name ?? "Customer"),
+    customer_phone: customerPhone,
+    vehicle_details:
+      typeof row.vehicle_details === "string" && row.vehicle_details.trim()
+        ? row.vehicle_details
+        : formatVehicleDetails(row.vehicle),
+    description,
+    customer_latitude: toNumber(
+      location?.latitude ?? row.customer_latitude ?? row.latitude
+    ),
+    customer_longitude: toNumber(
+      location?.longitude ?? row.customer_longitude ?? row.longitude
+    ),
+    dispatch_status: normalizeDispatchStatus(requestStatus, row.dispatch_status),
+    request_status: requestStatus,
     assigned_at:
-      typeof row.assigned_at === "string" ? row.assigned_at : undefined,
+      typeof row.created_at === "string"
+        ? row.created_at
+        : typeof row.assigned_at === "string"
+          ? row.assigned_at
+          : undefined,
   };
 }
 
@@ -69,24 +137,41 @@ function extractJobs(body: unknown): unknown[] {
   return [];
 }
 
-/** GET /api/mechanic/jobs — active jobs for logged-in mechanic (auth:api). */
-export async function fetchMechanicJobs(): Promise<MechanicJob[]> {
-  const res = await mechanicApi.get("/mechanic/jobs");
+async function resolveWorkshopId(workshopId?: number): Promise<number> {
+  if (workshopId != null && Number.isFinite(workshopId) && workshopId > 0) {
+    return workshopId;
+  }
+  const fromCache = mechanicAuthService.getWorkshopId();
+  if (fromCache != null) return fromCache;
+  const profile = await mechanicAuthService.getCurrentMechanic();
+  const id = profile?.workshop_id;
+  if (id != null && Number.isFinite(id) && id > 0) return id;
+  throw new Error(
+    "Workshop id is missing from your mechanic profile. Sign out and sign in again."
+  );
+}
+
+/** GET /api/mechanic/jobs/{workshop_id} — active jobs (auth:api). */
+export async function fetchMechanicJobs(workshopId?: number): Promise<MechanicJob[]> {
+  const wsId = await resolveWorkshopId(workshopId);
+  const res = await mechanicApi.get(`/mechanic/jobs/${wsId}`, {
+    skipAuthRedirect: true,
+  });
   return extractJobs(res.data)
     .map(normalizeJob)
     .filter((j): j is MechanicJob => j != null);
 }
 
-export async function fetchMechanicJob(jobId: number): Promise<MechanicJob | null> {
-  const res = await mechanicApi.get(`/mechanic/jobs/${jobId}`);
-  const body = res.data;
-  const row =
-    isRecord(body) && isRecord(body.data)
-      ? body.data
-      : isRecord(body) && body.job
-        ? body.job
-        : body;
-  return normalizeJob(row);
+/** Load one job by service request id from the workshop jobs list. */
+export async function fetchMechanicJob(
+  requestId: number,
+  workshopId?: number
+): Promise<MechanicJob | null> {
+  if (!Number.isFinite(requestId) || requestId <= 0) return null;
+  const list = await fetchMechanicJobs(workshopId);
+  return (
+    list.find((j) => j.id === requestId || j.service_request_id === requestId) ?? null
+  );
 }
 
 export async function updateMechanicJobStatus(
