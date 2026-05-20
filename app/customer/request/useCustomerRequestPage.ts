@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import api from "@/services/auth";
 import { useServiceRequest } from "./useServiceRequest";
 import type { ApiService, CustomerVehicleOption } from "./types";
+import { useWorkshopAppointmentBooking } from "@/hooks/useWorkshopAppointmentBooking";
+import { todayDateString } from "@/lib/workshopBooking";
 
 const serviceAccent = [
   "from-orange-500 to-amber-500 shadow-orange-500/25",
@@ -154,6 +156,8 @@ export function useCustomerRequestPage() {
     return parsePositiveInt(raw);
   }, [searchParams]);
 
+  const appointmentBooking = useWorkshopAppointmentBooking(providerId);
+
   const {
     location,
     problem,
@@ -171,6 +175,8 @@ export function useCustomerRequestPage() {
     requireProviderFromParams: true,
     selectedVehicleId,
     skipCreatingVehicle: true,
+    requestType: appointmentBooking.requestTiming,
+    scheduledAppointment: appointmentBooking.selectedSlot,
   });
 
   useEffect(() => {
@@ -320,6 +326,8 @@ export function useCustomerRequestPage() {
     submitError,
     handleSubmit,
     serviceName,
+    appointmentBooking,
+    minAppointmentDate: todayDateString(),
   };
 }
 

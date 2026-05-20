@@ -5,6 +5,8 @@ import { MapPin, Sparkles } from "lucide-react";
 import type { Dispatch, FormEvent, SetStateAction } from "react";
 import type { LocationState } from "@/app/customer/request/useServiceRequest";
 import type { CustomerVehicleOption } from "@/app/customer/request/types";
+import WorkshopAppointmentPicker from "@/components/customer/WorkshopAppointmentPicker";
+import type { WorkshopAppointmentPickerProps } from "@/components/customer/WorkshopAppointmentPicker";
 
 const CustomerLocationMap = dynamic(
   () => import("@/components/customer/CustomerLocationMap"),
@@ -34,6 +36,8 @@ export type ServiceRequestViewProps = {
   onSubmit: (e: FormEvent) => void;
   variant?: "page" | "embedded";
   onChangeService?: () => void;
+  /** When set, shows workshop visit booking (date + time slots). */
+  appointmentPicker?: Omit<WorkshopAppointmentPickerProps, never> | null;
 };
 
 const fieldClass =
@@ -55,6 +59,7 @@ export default function ServiceRequestView({
   onSubmit,
   variant = "page",
   onChangeService,
+  appointmentPicker = null,
 }: ServiceRequestViewProps) {
   const embedded = variant === "embedded";
 
@@ -119,6 +124,9 @@ export default function ServiceRequestView({
       )}
 
       <form onSubmit={onSubmit} className="space-y-8">
+        {appointmentPicker ? (
+          <WorkshopAppointmentPicker {...appointmentPicker} />
+        ) : null}
         <div className="grid lg:grid-cols-2 gap-6 lg:gap-8">
           <div className="space-y-4">
             <div className="rounded-2xl border border-slate-200/90 bg-slate-50/50 overflow-hidden shadow-inner">
@@ -242,7 +250,9 @@ export default function ServiceRequestView({
             type="submit"
             className="w-full sm:w-auto min-w-[240px] px-8 py-3.5 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-semibold shadow-lg shadow-orange-500/25 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2"
           >
-            Submit assistance request
+            {appointmentPicker?.requestTiming === "scheduled"
+              ? "Book workshop visit"
+              : "Submit assistance request"}
           </button>
         </div>
       </form>

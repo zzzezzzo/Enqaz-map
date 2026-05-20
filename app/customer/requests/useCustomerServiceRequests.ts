@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import api from "@/services/auth";
 import type { RequestStatus, ServiceRequest } from "@/lib/requests";
+import { formatSlotRange12h } from "@/lib/workshopBooking";
 
 type ApiNested = Record<string, unknown>;
 
@@ -93,6 +94,10 @@ export type ApiCustomerServiceRequest = {
   mechanic_longitude?: string | number;
   mechanic_name?: string;
   dispatch_status?: string;
+  request_type?: string;
+  scheduled_date?: string;
+  scheduled_starts_at?: string;
+  scheduled_ends_at?: string;
   assigned_mechanic?: {
     id?: number;
     name?: string;
@@ -217,7 +222,16 @@ export function mapApiRowToServiceRequest(
     status,
     statusLabel,
     requestId: `SR-${id}`,
-    dateTime: formatWhen(r.created_at),
+    dateTime:
+      String(r.request_type ?? "").toLowerCase() === "scheduled" &&
+      r.scheduled_date &&
+      r.scheduled_starts_at &&
+      r.scheduled_ends_at
+        ? `${String(r.scheduled_date).slice(0, 10)} · ${formatSlotRange12h(
+            String(r.scheduled_starts_at).slice(0, 5),
+            String(r.scheduled_ends_at).slice(0, 5)
+          )}`
+        : formatWhen(r.created_at),
     location: formatCoords(r.latitude, r.longitude),
     customerName: "Your request",
     serviceProvider: String(r.provider?.name ?? "—"),

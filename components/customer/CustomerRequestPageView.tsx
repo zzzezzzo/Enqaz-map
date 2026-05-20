@@ -33,6 +33,8 @@ export default function CustomerRequestPageView(props: Props) {
     submitError,
     handleSubmit,
     serviceName,
+    appointmentBooking,
+    minAppointmentDate,
   } = props;
 
   return (
@@ -172,6 +174,27 @@ export default function CustomerRequestPageView(props: Props) {
                 submitError={submitError}
                 onSubmit={handleSubmit}
                 onChangeService={clearService}
+                appointmentPicker={
+                  showProviderMode
+                    ? {
+                        requestTiming: appointmentBooking.requestTiming,
+                        onRequestTimingChange:
+                          appointmentBooking.setRequestTiming,
+                        appointmentDate: appointmentBooking.appointmentDate,
+                        onAppointmentDateChange:
+                          appointmentBooking.setAppointmentDate,
+                        minDate: minAppointmentDate,
+                        slots: appointmentBooking.slots,
+                        slotsLoading: appointmentBooking.slotsLoading,
+                        slotsError: appointmentBooking.slotsError,
+                        selectedSlot: appointmentBooking.selectedSlot,
+                        onSelectSlot: appointmentBooking.selectSlot,
+                        onReloadSlots: appointmentBooking.reloadSlots,
+                        workshopHours: appointmentBooking.workshopHours,
+                        hoursFromBackend: appointmentBooking.hoursFromBackend,
+                      }
+                    : null
+                }
               />
             )}
           </div>

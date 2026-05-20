@@ -31,7 +31,6 @@ export default function WorkshopInformationCard({
   return (
     <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
       <h3 className="text-sm font-semibold text-slate-900">Workshop Information</h3>
-
       <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
         <LabeledInput
           label="Workshop name"
@@ -55,7 +54,17 @@ export default function WorkshopInformationCard({
           onChange={(v) => setForm({ ...form, longitude: v })}
           inputMode="decimal"
         />
-
+        <div className="mt-5">
+        <button
+          type="button"
+          onClick={onUseLiveLocation}
+          disabled={locationLoading}
+          className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-70"
+        >
+          {locationLoading ? "Getting location..." : "Use live location"}
+        </button>
+        {locationError && <p className="mt-2 text-xs text-red-600">{locationError}</p>}
+      </div>
         <AmPmTimePicker
           label="Opens at"
           icon={<Clock className="h-4 w-4 text-slate-400" />}
@@ -75,17 +84,7 @@ export default function WorkshopInformationCard({
         Times use 12-hour clock (AM/PM) and are saved with your workshop profile.
       </p>
 
-      <div className="mt-3">
-        <button
-          type="button"
-          onClick={onUseLiveLocation}
-          disabled={locationLoading}
-          className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-70"
-        >
-          {locationLoading ? "Getting location..." : "Use live location"}
-        </button>
-        {locationError && <p className="mt-2 text-xs text-red-600">{locationError}</p>}
-      </div>
+      
 
       <div className="mt-5">
         <label className="text-xs font-semibold text-slate-700">Description</label>

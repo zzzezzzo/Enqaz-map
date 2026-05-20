@@ -82,6 +82,13 @@ type ServiceRequestUseServiceRequestArgs = {
   selectedVehicleId?: number | null;
   /** When true, use `selectedVehicleId` for submit instead of creating a vehicle from `carDetails`. */
   skipCreatingVehicle?: boolean;
+  /** Workshop visit booking (requires `requireProviderFromParams`). */
+  requestType?: "immediate" | "scheduled";
+  scheduledAppointment?: {
+    date: string;
+    starts_at: string;
+    ends_at: string;
+  } | null;
 };
 
 const INACTIVE_LOCATION: LocationState = {
@@ -112,6 +119,8 @@ export function useServiceRequest({
   requireProviderFromParams = false,
   selectedVehicleId,
   skipCreatingVehicle = false,
+  requestType = "immediate",
+  scheduledAppointment = null,
 }: ServiceRequestUseServiceRequestArgs) {
   const router = useRouter();
 
@@ -367,6 +376,17 @@ export function useServiceRequest({
       return;
     }
 
+    if (requestType === "scheduled") {
+      if (
+        !scheduledAppointment?.date ||
+        !scheduledAppointment.starts_at ||
+        !scheduledAppointment.ends_at
+      ) {
+        setSubmitError("Please choose a date and an available time slot.");
+        return;
+      }
+    }
+
     let vehicle_id: number;
 
     if (skipCreatingVehicle) {
@@ -393,14 +413,21 @@ export function useServiceRequest({
       vehicle_id = await createVehicleId();
     }
 
-    const payload = {
+    const payload: Record<string, unknown> = {
       provider_id,
       vehicle_id,
       service_id: serviceId,
       latitude: Number(geoLocation.lat.toFixed(6)),
       longitude: Number(geoLocation.lng.toFixed(6)),
       description: problem.trim(),
+      request_type: requestType,
     };
+
+    if (requestType === "scheduled" && scheduledAppointment) {
+      payload.scheduled_date = scheduledAppointment.date;
+      payload.scheduled_starts_at = scheduledAppointment.starts_at;
+      payload.scheduled_ends_at = scheduledAppointment.ends_at;
+    }
 
     try {
       await api.post("/customer/service-requests", payload);
