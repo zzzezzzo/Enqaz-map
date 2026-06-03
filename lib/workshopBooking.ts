@@ -9,10 +9,14 @@ import {
   minutesToHHMM,
 } from "@/lib/workshopHours";
 
+export type SlotUnavailableReason = "booked" | "past";
+
 export type AvailableSlot = {
   starts_at: string;
   ends_at: string;
   available: boolean;
+  /** Set when `available` is false (booked by another request or before current time). */
+  unavailableReason?: SlotUnavailableReason;
 };
 
 export type WorkshopHours = {
@@ -82,7 +86,12 @@ export function generateSlotsFromHours(
       return bStart < endMin && bEnd > startMin;
     });
 
-    slots.push({ starts_at: start, ends_at: end, available: !overlaps });
+    slots.push({
+      starts_at: start,
+      ends_at: end,
+      available: !overlaps,
+      unavailableReason: overlaps ? "booked" : undefined,
+    });
     cursor += slotDurationMinutes;
   }
 
@@ -152,6 +161,7 @@ function parseSlotsArray(raw: unknown): AvailableSlot[] | null {
       starts_at,
       ends_at,
       available: item.available !== false,
+      unavailableReason: item.available === false ? "booked" : undefined,
     });
   }
   return slots.length ? slots : null;
@@ -184,7 +194,9 @@ export function extractBookedSlotsFromRequests(
     const pid = Number(row.provider_id);
     if (!Number.isFinite(pid) || pid !== providerId) continue;
 
-    const reqType = String(row.request_type ?? "").toLowerCase();
+    const reqType = String(
+      row.requestTiming ?? row.request_timing ?? row.request_type ?? ""
+    ).toLowerCase();
     const schedDate = String(
       row.scheduled_date ?? row.appointment_date ?? ""
     ).slice(0, 10);
@@ -239,25 +251,15 @@ const DEFAULT_HOURS: WorkshopHours = {
 export async function fetchWorkshopHoursFromBackend(
   providerId: number
 ): Promise<{ hours: WorkshopHours; fromBackend: boolean }> {
-  const paths = [
-    `/customer/providers/${providerId}`,
-    `/customer/provider/${providerId}`,
-    `/customer/workshop/${providerId}`,
-    `/providers/${providerId}`,
-    `/customer/services-provider/${providerId}`,
-  ];
+  const path = `/customer/workshop/${providerId}`;
 
-  for (const path of paths) {
-    try {
-      const res = await api.get(path);
-      const parsed = parseHoursFromProvider(res.data);
-      if (parsed) return { hours: parsed, fromBackend: true };
-    } catch {
-      /* next path */
-    }
+  try {
+    const res = await api.get(path);
+    const parsed = parseHoursFromProvider(res.data);
+    return { hours: parsed ?? DEFAULT_HOURS, fromBackend: true };
+  } catch {
+    return { hours: DEFAULT_HOURS, fromBackend: false };
   }
-
-  return { hours: DEFAULT_HOURS, fromBackend: false };
 }
 
 /**
@@ -314,12 +316,53 @@ export async function fetchAvailableSlots(
   };
 }
 
-export function todayDateString(): string {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
+export function todayDateString(reference = new Date()): string {
+  const y = reference.getFullYear();
+  const m = String(reference.getMonth() + 1).padStart(2, "0");
+  const day = String(reference.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
+}
+
+export function isSameLocalCalendarDate(
+  dateStr: string,
+  reference = new Date()
+): boolean {
+  return dateStr.slice(0, 10) === todayDateString(reference);
+}
+
+export function getLocalNowMinutes(reference = new Date()): number {
+  return reference.getHours() * 60 + reference.getMinutes();
+}
+
+/** e.g. "3:45 PM" — local device time. */
+export function formatLocalNow12h(reference = new Date()): string {
+  return reference.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
+
+/** Disable slots that start before the current local time when booking today. */
+export function applyPastSlotCutoff(
+  slots: AvailableSlot[],
+  date: string,
+  reference = new Date()
+): AvailableSlot[] {
+  if (!isSameLocalCalendarDate(date, reference)) return slots;
+
+  const nowMin = getLocalNowMinutes(reference);
+
+  return slots.map((slot) => {
+    if (!slot.available) return slot;
+    const startMin = hhmmToMinutes(slot.starts_at);
+    if (startMin == null || startMin >= nowMin) return slot;
+    return {
+      ...slot,
+      available: false,
+      unavailableReason: "past",
+    };
+  });
 }
 
 export function formatSlotRange12h(starts_at: string, ends_at: string): string {

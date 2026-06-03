@@ -4,6 +4,10 @@ import axios from "axios";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import api from "@/services/auth";
+import {
+  buildCreateServiceRequestPayload,
+  isBackendRequestTimingKeyError,
+} from "@/lib/serviceRequestPayload";
 
 /** Pull Laravel / common API error text from an axios failure. */
 function readRequestSubmitError(err: unknown): string {
@@ -17,7 +21,17 @@ function readRequestSubmitError(err: unknown): string {
   if (data && typeof data === "object") {
     const rec = data as Record<string, unknown>;
     const msg = rec.message;
-    if (typeof msg === "string" && msg.trim()) return msg.trim();
+    if (typeof msg === "string" && msg.trim()) {
+      const trimmed = msg.trim();
+      if (isBackendRequestTimingKeyError(trimmed)) {
+        return (
+          "Server configuration error: add requestTiming to Laravel validation rules, " +
+          "or read timing with $request->input('requestTiming') instead of $validate['requestTiming']. " +
+          "This form already sends requestTiming, request_timing, and request_type."
+        );
+      }
+      return trimmed;
+    }
 
     const errStr = rec.error;
     if (typeof errStr === "string" && errStr.trim()) return errStr.trim();
@@ -413,21 +427,21 @@ export function useServiceRequest({
       vehicle_id = await createVehicleId();
     }
 
-    const payload: Record<string, unknown> = {
-      provider_id,
-      vehicle_id,
-      service_id: serviceId,
-      latitude: Number(geoLocation.lat.toFixed(6)),
-      longitude: Number(geoLocation.lng.toFixed(6)),
-      description: problem.trim(),
-      request_type: requestType,
-    };
+    const timing =
+      requestType === "scheduled" ? ("scheduled" as const) : ("immediate" as const);
 
-    if (requestType === "scheduled" && scheduledAppointment) {
-      payload.scheduled_date = scheduledAppointment.date;
-      payload.scheduled_starts_at = scheduledAppointment.starts_at;
-      payload.scheduled_ends_at = scheduledAppointment.ends_at;
-    }
+    const payload = buildCreateServiceRequestPayload(
+      {
+        provider_id,
+        vehicle_id,
+        service_id: serviceId,
+        latitude: Number(geoLocation.lat.toFixed(6)),
+        longitude: Number(geoLocation.lng.toFixed(6)),
+        description: problem.trim(),
+      },
+      timing,
+      timing === "scheduled" ? scheduledAppointment : null
+    );
 
     try {
       await api.post("/customer/service-requests", payload);

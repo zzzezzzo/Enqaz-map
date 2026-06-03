@@ -10,30 +10,21 @@ import { useCustomerServiceRequests } from "./useCustomerServiceRequests";
 export default function RequestHistoryPage() {
   const router = useRouter();
   const redirectedRequestIdRef = useRef<string | null>(null);
-  const { requests, loading, error, refetch } = useCustomerServiceRequests();
+  const { requests, loading, error } = useCustomerServiceRequests();
 
   useEffect(() => {
-    const hasActiveRequest = requests.some(
-      (request) => request.status === "accepted" || request.status === "in_progress"
-    );
-    if (!hasActiveRequest) return;
+    if (loading) return;
 
     const activeRequest = requests.find(
-      (request) => request.status === "accepted" || request.status === "in_progress"
+      (request) =>
+        request.status === "accepted" || request.status === "in_progress"
     );
     if (!activeRequest) return;
     if (redirectedRequestIdRef.current === activeRequest.id) return;
 
     redirectedRequestIdRef.current = activeRequest.id;
-    router.push(`/customer/requests/${activeRequest.id}/tracking`);
-  }, [requests, router]);
-
-  useEffect(() => {
-    const intervalId = window.setInterval(() => {
-      void refetch();
-    }, 7000);
-    return () => window.clearInterval(intervalId);
-  }, [refetch]);
+    router.replace(`/customer/requests/${activeRequest.id}/tracking`);
+  }, [requests, loading, router]);
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">

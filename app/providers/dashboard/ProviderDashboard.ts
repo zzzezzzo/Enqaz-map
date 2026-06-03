@@ -138,7 +138,13 @@ export interface IncomeRequest {
   description: string;
   service_name: string;
   distance: string;
-  minutes_ago: string;
+  minutes_ago: string | number;
+  scheduled_date?: string;
+  scheduled_starts_at?: string;
+  scheduled_ends_at?: string;
+  phone?: string;
+  car?: string;
+  vehicle_details?: string;
 }
 
 export interface IncomeRequestData {

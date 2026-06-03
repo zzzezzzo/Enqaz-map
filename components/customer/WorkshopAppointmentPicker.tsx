@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarClock, Loader2, RefreshCw } from "lucide-react";
+import { CalendarClock, Clock, Loader2, RefreshCw } from "lucide-react";
 import type { AvailableSlot, SelectedAppointment } from "@/lib/workshopBooking";
 import {
   formatSlotRange12h,
@@ -23,6 +23,8 @@ export type WorkshopAppointmentPickerProps = {
   onReloadSlots: () => void;
   workshopHours: WorkshopHours;
   hoursFromBackend: boolean;
+  /** Local device time, e.g. "3:45 PM". */
+  currentTimeLabel: string;
 };
 
 export default function WorkshopAppointmentPicker({
@@ -39,8 +41,16 @@ export default function WorkshopAppointmentPicker({
   onReloadSlots,
   workshopHours,
   hoursFromBackend,
+  currentTimeLabel,
 }: WorkshopAppointmentPickerProps) {
   const availableCount = slots.filter((s) => s.available).length;
+  const bookingToday = appointmentDate === minDate;
+
+  const slotTitle = (slot: AvailableSlot) => {
+    if (slot.available) return "Available";
+    if (slot.unavailableReason === "past") return "Past time — not available";
+    return "Already booked";
+  };
 
   return (
     <div className="rounded-2xl border border-slate-200/90 bg-slate-50/60 p-4 space-y-4">
@@ -105,6 +115,15 @@ export default function WorkshopAppointmentPicker({
                 className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-500/20"
               />
             </div>
+            <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                Current time
+              </p>
+              <p className="flex items-center gap-1.5 font-semibold text-slate-900 tabular-nums">
+                <Clock className="h-3.5 w-3.5 text-orange-600" aria-hidden />
+                {currentTimeLabel}
+              </p>
+            </div>
             <button
               type="button"
               onClick={onReloadSlots}
@@ -157,8 +176,14 @@ export default function WorkshopAppointmentPicker({
             <div className="space-y-2">
               <p className="text-xs text-slate-500">
                 {availableCount > 0
-                  ? `${availableCount} time${availableCount === 1 ? "" : "s"} available. Booked slots are disabled.`
-                  : "No open slots — pick another day."}
+                  ? `${availableCount} time${availableCount === 1 ? "" : "s"} available.${
+                      bookingToday
+                        ? " Times before now are disabled."
+                        : " Booked slots are disabled."
+                    }`
+                  : bookingToday
+                    ? "No times left today — try a later time or another day."
+                    : "No open slots — pick another day."}
               </p>
               <div className="grid max-h-52 grid-cols-2 gap-2 overflow-y-auto pr-1 sm:grid-cols-3">
                 {slots.map((slot) => {
@@ -178,12 +203,14 @@ export default function WorkshopAppointmentPicker({
                       onClick={() => onSelectSlot(slot)}
                       className={`rounded-xl border px-2 py-2.5 text-xs font-semibold transition ${
                         !slot.available
-                          ? "cursor-not-allowed border-slate-100 bg-slate-100 text-slate-400 line-through"
+                          ? slot.unavailableReason === "past"
+                            ? "cursor-not-allowed border-amber-100 bg-amber-50/90 text-amber-700/80 line-through"
+                            : "cursor-not-allowed border-slate-100 bg-slate-100 text-slate-400 line-through"
                           : selected
                             ? "border-orange-500 bg-orange-500 text-white shadow-md"
                             : "border-slate-200 bg-white text-slate-800 hover:border-orange-300 hover:bg-orange-50"
                       }`}
-                      title={slot.available ? "Available" : "Already booked"}
+                      title={slotTitle(slot)}
                     >
                       {label}
                     </button>

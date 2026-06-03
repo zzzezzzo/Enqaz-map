@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type {
   AvailableSlot,
   SelectedAppointment,
@@ -11,18 +11,23 @@ import {
   DEFAULT_OPENING_MINUTES,
 } from "@/lib/workshopHours";
 import {
+  applyPastSlotCutoff,
   fetchAvailableSlots,
   fetchWorkshopHoursFromBackend,
+  formatLocalNow12h,
   todayDateString,
 } from "@/lib/workshopBooking";
 
 export type RequestTimingMode = "immediate" | "scheduled";
 
+const CLOCK_TICK_MS = 60_000;
+
 export function useWorkshopAppointmentBooking(providerId: number | null) {
   const [requestTiming, setRequestTiming] =
     useState<RequestTimingMode>("immediate");
   const [appointmentDate, setAppointmentDate] = useState(todayDateString);
-  const [slots, setSlots] = useState<AvailableSlot[]>([]);
+  const [fetchedSlots, setFetchedSlots] = useState<AvailableSlot[]>([]);
+  const [now, setNow] = useState(() => new Date());
   const [selectedSlot, setSelectedSlot] = useState<SelectedAppointment | null>(
     null
   );
@@ -35,9 +40,21 @@ export function useWorkshopAppointmentBooking(providerId: number | null) {
   });
   const [hoursFromBackend, setHoursFromBackend] = useState(false);
 
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(new Date()), CLOCK_TICK_MS);
+    return () => window.clearInterval(id);
+  }, []);
+
+  const slots = useMemo(
+    () => applyPastSlotCutoff(fetchedSlots, appointmentDate, now),
+    [fetchedSlots, appointmentDate, now]
+  );
+
+  const currentTimeLabel = useMemo(() => formatLocalNow12h(now), [now]);
+
   const loadSlots = useCallback(async () => {
     if (providerId == null || requestTiming !== "scheduled") {
-      setSlots([]);
+      setFetchedSlots([]);
       setSelectedSlot(null);
       return;
     }
@@ -50,16 +67,25 @@ export function useWorkshopAppointmentBooking(providerId: number | null) {
       const result = await fetchAvailableSlots(providerId, appointmentDate);
       setWorkshopHours(result.hours);
       setHoursFromBackend(result.hoursFromBackend);
-      setSlots(result.slots);
-      if (result.slots.length === 0) {
+      const withPastCutoff = applyPastSlotCutoff(
+        result.slots,
+        appointmentDate,
+        new Date()
+      );
+      setFetchedSlots(result.slots);
+      if (withPastCutoff.length === 0) {
         setSlotsError(
           result.hoursFromBackend
             ? "No time slots for this day (workshop may be closed). Try another date."
             : "No time slots for this day. Try another date."
         );
+      } else if (withPastCutoff.every((s) => !s.available)) {
+        setSlotsError(
+          "No times left today — pick a later slot tomorrow or another day."
+        );
       }
     } catch {
-      setSlots([]);
+      setFetchedSlots([]);
       setSlotsError("Could not load available times. Try again.");
     } finally {
       setSlotsLoading(false);
@@ -79,6 +105,22 @@ export function useWorkshopAppointmentBooking(providerId: number | null) {
   useEffect(() => {
     void loadSlots();
   }, [loadSlots]);
+
+  useEffect(() => {
+    if (!selectedSlot || requestTiming !== "scheduled") return;
+    const [cutoff] = applyPastSlotCutoff(
+      [
+        {
+          starts_at: selectedSlot.starts_at,
+          ends_at: selectedSlot.ends_at,
+          available: true,
+        },
+      ],
+      selectedSlot.date,
+      now
+    );
+    if (!cutoff?.available) setSelectedSlot(null);
+  }, [now, selectedSlot, requestTiming]);
 
   const selectSlot = useCallback(
     (slot: AvailableSlot) => {
@@ -108,5 +150,6 @@ export function useWorkshopAppointmentBooking(providerId: number | null) {
     reloadSlots: loadSlots,
     workshopHours,
     hoursFromBackend,
+    currentTimeLabel,
   };
 }

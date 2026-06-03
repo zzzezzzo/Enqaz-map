@@ -95,6 +95,8 @@ export type ApiCustomerServiceRequest = {
   mechanic_name?: string;
   dispatch_status?: string;
   request_type?: string;
+  requestTiming?: string;
+  request_timing?: string;
   scheduled_date?: string;
   scheduled_starts_at?: string;
   scheduled_ends_at?: string;
@@ -216,6 +218,10 @@ export function mapApiRowToServiceRequest(
     parseCoord(mechanic?.longitude) ??
     parseCoord(mechanic?.lng);
 
+  const isScheduled =
+    String(r.requestTiming ?? r.request_timing ?? r.request_type ?? "")
+      .toLowerCase() === "scheduled";
+
   return {
     id: String(id),
     serviceName: String(r.service?.name ?? "Service"),
@@ -223,7 +229,7 @@ export function mapApiRowToServiceRequest(
     statusLabel,
     requestId: `SR-${id}`,
     dateTime:
-      String(r.request_type ?? "").toLowerCase() === "scheduled" &&
+      isScheduled &&
       r.scheduled_date &&
       r.scheduled_starts_at &&
       r.scheduled_ends_at

@@ -52,10 +52,6 @@ export default function CustomerRequestPageView(props: Props) {
           <p className="mt-3 text-slate-600 max-w-2xl mx-auto lg:mx-0 text-base leading-relaxed">
             Provider comes from your link. Choose a service, your saved
             vehicle, location, and a short description—we send{" "}
-            <span className="font-medium text-slate-800">
-              provider_id, vehicle_id, service_id, latitude, longitude,
-              description
-            </span>{" "}
             to the server.
           </p>
           {!providerId && (
@@ -192,6 +188,7 @@ export default function CustomerRequestPageView(props: Props) {
                         onReloadSlots: appointmentBooking.reloadSlots,
                         workshopHours: appointmentBooking.workshopHours,
                         hoursFromBackend: appointmentBooking.hoursFromBackend,
+                        currentTimeLabel: appointmentBooking.currentTimeLabel,
                       }
                     : null
                 }
